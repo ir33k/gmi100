@@ -1,0 +1,6 @@
+Attempt to write Gemini intenet protocol CLI client in 100 lines of C.
+
+Authos of Gemini protocol claim that it should be possible in modern
+scripting languages [0].  Maybe it's also possible in C.
+
+[0] https://gemini.circumlunar.space/docs/faq.gmi
