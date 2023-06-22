@@ -1,68 +1,79 @@
+#include <stdio.h>              /* Gemini CLI web client.                                 100x100 */
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
 #include <netdb.h>
 #include <openssl/ssl.h>
-#include <stdio.h>
-#include <unistd.h>
 
-#define URISIZ 1024
-#define PORT 1965		/* Default Gemini port */
+#define MAXW    72              /* CLI maximum number of displayed characters per line*/
+#define MAXH    20              /* CLI maximum number of displayed lines per page */
+#define URISIZ  1024            /* Gemini maximum URI size */
 
-enum { ERR_OK=0, ERR_SFD, ERR_HOST, ERR_TCP, ERR_SSL, ERR_CONN,
-	ERR_WRITE, _ERR_SIZ };
-static const char *s_err[_ERR_SIZ] = {
-	[ERR_OK]    = "ok, no errors",
-	[ERR_SFD]   = "failed to open socket",
-	[ERR_HOST]  = "invalid host (domain) name",
-	[ERR_TCP]   = "failed to establish tcp connection",
-	[ERR_SSL]   = "failed to create ssl",
-	[ERR_CONN]  = "failed to establish ssl connection",
-	[ERR_WRITE] = "failed to send message to server"
+char *net_err[] = {             /* Map h_errno to string, based on netdb.h srouce. */
+    "", "HOST_NOT_FOUND", "TRY_AGAIN", "NO_RECOVERY", "NO_DATA"
 };
-int tcp(int *res, char *host) {
-	struct hostent *he;
-	struct sockaddr_in addr;
-	if ((*res = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) return ERR_SFD;
-	if (!(he = gethostbyname(host))) return ERR_HOST;
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(PORT);
-	for (int i = 0; he->h_addr_list[i]; i++) {
-		addr.sin_addr.s_addr = *((unsigned long *)he->h_addr_list[i]);
-		if (!connect(*res, (struct sockaddr *)&addr, sizeof(addr))) return ERR_OK;
-	}
-	return ERR_TCP;
-}
-int ssl_connect(SSL **res, SSL_CTX *ctx, int sfd) {
-	if (!(*res = SSL_new(ctx))) return ERR_SSL;
-	SSL_set_fd(*res, sfd);
-	if (SSL_connect(*res) == -1) return ERR_CONN;
-	return ERR_OK;
-}
+char *ssl_err[] = {             /* Map SSL_get_error to string, based on ssl.h source. */
+    "NONE", "SSL", "WANT_READ", "WANT_WRITE", "WANT_X509_LOOKUP", "SYSCALL", "ZERO_RETURN",
+    "WANT_CONNECT", "WANT_ACCEPT", "WANT_ASYNC", "WANT_ASYNC_JOB", "WANT_CLIENT_HELLO_CB"
+};
+
 int main(void) {
-	char uri[URISIZ+1], buf[BUFSIZ];
-	int err, siz, sfd;
-	SSL_CTX *ssl_ctx;
-	SSL *ssl;
-	SSL_library_init();
-	if (!(ssl_ctx = SSL_CTX_new(TLS_client_method()))) {
-		fprintf(stderr, "SSL_CTX_new");
-		return 1;
-	}
-        while(scanf("%1024s", uri) != EOF) {
-		if ((err = tcp(&sfd, uri))) goto err;
-		if ((err = ssl_connect(&ssl, ssl_ctx, sfd))) goto err;
-		siz = sprintf(buf, "gemini://%s:%d\r\n", uri, PORT);
-		if (SSL_write(ssl, buf, siz) == 0) {
-			err = ERR_WRITE;
-			goto err;
-		}
-		while ((siz = SSL_read(ssl, buf, BUFSIZ)) > 0) {
-			fwrite(buf, 1, siz, stdout);
-		}
-		close(sfd);
-		SSL_free(ssl); /* SSL_shutdown skipped.  Good idea? */
-		continue;
-	err:
-		fprintf(stderr, "ERROR: %s\n", s_err[err]);
-	}
-	SSL_CTX_free(ssl_ctx);
-	return 0;
+    char input[URISIZ+1], buf[BUFSIZ], *line;
+    int i, siz, sfd, uri, err;
+    struct hostent *he;
+    struct sockaddr_in addr;
+    SSL_CTX *ctx;
+    SSL *ssl;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(1965); /* Hardcoded Gemini port */
+    SSL_library_init();
+    if (!(ctx = SSL_CTX_new(TLS_client_method()))) {
+        fprintf(stderr, "ERROR: SSL_CTX_new failed");
+        return 1;
+    }
+    while(scanf("%1024s", input) != EOF) {             /* Get input from user */
+        if (input[0] && !input[1]) switch (input[0]) { /* Handle one letter commands */
+            case 'q': goto quit;                       /* Quit program */
+            case 'b': printf("Go back\n");   continue; /* TODO */
+            case 'r': printf("Refresh\n");   continue; /* TODO */
+            case 'n': printf("Next page\n"); continue; /* TODO */
+            case 'p': printf("Prev page\n"); continue; /* TODO */
+            case 'h': printf("Help page\n"); continue; /* TODO */
+        } else if ((uri = atoi(input)) > 0) {          /* Handle navigation URI navigation */
+            printf("Navigation to: %d\n", uri);        /* TODO */
+            continue;
+        } while (1) {           /* Else this is an URI string. */
+            if ((sfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) goto errstd;
+            if ((he = gethostbyname(input)) == 0) goto errnet;
+            for (i = 0; he->h_addr_list[i]; i++) {
+                addr.sin_addr.s_addr = *((unsigned long *)he->h_addr_list[i]);
+                err = connect(sfd, (struct sockaddr *)&addr, sizeof(addr));
+                if (err == 0) break;
+            }
+            if (err) goto errstd;
+            siz = sprintf(buf, "gemini://%s\r\n", input);
+            if ((ssl = SSL_new(ctx)) == 0)             goto errssl;
+            if ((err = SSL_set_fd(ssl, sfd)) == 0)     goto errssl;
+            if ((err = SSL_connect(ssl)) < 0)          goto errssl;
+            if ((err = SSL_write(ssl, buf, siz)) <= 0) goto errssl;
+            while ((siz = SSL_read(ssl, buf, BUFSIZ-1)) > 0) {
+                buf[siz] = 0;
+                line = strtok(buf, "\n");
+                do {
+                    printf("%s\n", line);
+                } while ((line = strtok(0, "\n")));
+            }
+            close(sfd);
+            SSL_free(ssl);      /* SSL_shutdown skipped on purpose */
+            break;
+        }
+        continue;
+errstd: fprintf(stderr, "ERROR: STD %s\n", strerror(errno)); continue;
+errnet: fprintf(stderr, "ERROR: NET %s\n", net_err[h_errno]); continue;
+errssl: fprintf(stderr, "ERROR: SSL %s\n", ssl_err[SSL_get_error(ssl, err)]); continue;
+    }
+quit:
+    SSL_CTX_free(ctx);
+    return 0;
 }
