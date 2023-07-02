@@ -25,7 +25,7 @@ int main(void) {
                 fprintf(stderr, "ERROR: SSL_CTX_new failed");
                 return 1;                                     /* Fail, can't work without SSL     */
         }
-start:  printf("gmi100: ");                                   /* Prompt, beginning of main loop   */
+start:  printf("gmi100: ");                                   /* Prompt, start of main loop       */
         if (!fgets(tmp, KB, stdin)) goto quit;                /* Get one line of input from user  */
         if (tmp[1] == '\n') switch (tmp[0]) {                 /* Handle commands                  */
                 case 'q': goto quit;                          /* Quit                             */
@@ -39,10 +39,10 @@ start:  printf("gmi100: ");                                   /* Prompt, beginni
                 if (strncmp(bp, "gemini://", 9)) strcat(uri, bp); /* Relative URI                 */
                 else strcpy(uri, bp);                         /* Absolute URI                     */
         } else strcpy(uri, tmp);                              /* Handle URL typed by hand         */
-uri:    for (i=j=0; uri[i] && i<KB && j<KB; i++) {
-                if (uri[i] == '\n' || uri[i] == '\r') continue;
-                if (uri[i] == ' ' && (j+=3) < KB) strcat(tmp, "%20");
-                else tmp[j++] = uri[i];
+uri:    for (i=j=0; uri[i] && i<KB && j<KB; tmp[j]=0, i++) {  /* Normalize URI                    */
+                if (uri[i] == '\n') continue;                 /* Skip new line characters         */
+                if (uri[i] != ' ') tmp[j++] = uri[i];         /* Copy regular characters          */
+                else if ((j+=3) < KB) strcat(tmp, "%20");     /* Replace whitepsace whit %20      */
         }
         sprintf(uri, "%.*s", j, tmp);
         fprintf(stderr, "@cli: request\t\"%s\"\n", uri);
