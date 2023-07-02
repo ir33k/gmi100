@@ -29,21 +29,23 @@ start:  printf("gmi100: ");                                   /* Prompt, start o
         if (!fgets(tmp, KB, stdin)) goto quit;                /* Get one line of input from user  */
         if (tmp[1] == '\n') switch (tmp[0]) {                 /* Handle commands                  */
                 case 'q': goto quit;                          /* Quit                             */
-                case 'b': goto start;;                        /* TODO(irek): Go back              */
+                case 'b': goto start;                         /* TODO(irek): Go back              */
         } if ((i = atoi(tmp)) > 0) {                          /* Handle URI navigation            */
                 for (bp = buf; i && bp; i--)                  /* Search whole buffer for links    */
                         bp = strstr(bp+3, "\n=>");            /* Jump from link to link           */
                 if (i || !bp) goto start;                     /* Wrong URI index, try again       */
                 for (bp += 3; *bp <= ' '; bp += 1);           /* Skip whitespaces                 */
                 bp[strcspn(bp, " \t\n\0")] = 0;               /* Mark end with null terminator    */
-                if (strncmp(bp, "gemini://", 9)) strcat(uri, bp); /* Relative URI                 */
-                else strcpy(uri, bp);                         /* Absolute URI                     */
+                if (!strncmp(bp, "gemini://", 9)) *uri = 0;   /* We have absolute URI, reset old  */
+                strcat(uri, bp);
         } else strcpy(uri, tmp);                              /* Handle URL typed by hand         */
-uri:    j = strncmp(uri, "gemini://", 9) ? 9 : 0;
-        if (j == 9) strcpy(tmp, "gemini://");
+uri:    j = strncmp(uri, "gemini://", 9) ? 9 : 0;             /* Check if protocol was provided   */
+        if (j == 9) strcpy(tmp, "gemini://");                 /* Add protocol if missing */
         for (i=0; uri[i] && j<KB; tmp[j]=0, i++) {            /* Normalize URI                    */
-                if (uri[i] == '\n') continue;                 /* Skip new line characters         */
-                if (uri[i] != ' ') tmp[j++] = uri[i];         /* Copy regular characters          */
+                if (!strncmp(&uri[i], "/..", 3))              /* TODO(irek): test this shit */
+                        for (j--, i+=2; tmp[j] != '/'; j--);
+                else if (uri[i] == '\n') continue;            /* Skip new line characters         */
+                else if (uri[i] != ' ') tmp[j++] = uri[i];    /* Copy regular characters          */
                 else if ((j+=3) < KB) strcat(tmp, "%20");     /* Replace whitepsace whit %20      */
         }
         strcpy(uri, tmp);
@@ -51,7 +53,6 @@ uri:    j = strncmp(uri, "gemini://", 9) ? 9 : 0;
         if ((sfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) goto errstd;
         bp = uri + 9;                                         /* Remove URI protocol              */
         sprintf(tmp, "%.*s", (int)strcspn(bp, "/\0"), bp);    /* Extract URI host                 */
-        fprintf(stderr, "@cli: host\t\"%s\"\n", tmp);         /* Log request hostname             */
         if ((he = gethostbyname(tmp)) == 0) goto errnet;      /* Search for IP with hostname...   */
         for (i = 0; he->h_addr_list[i]; i++) {                /* ...in list of all addresses      */
                 addr.sin_addr.s_addr = *((unsigned long*)he->h_addr_list[i]); /* Set address      */
@@ -64,8 +65,10 @@ uri:    j = strncmp(uri, "gemini://", 9) ? 9 : 0;
         if ((err = SSL_set_fd(ssl, sfd)) == 0)     goto errssl;
         if ((err = SSL_connect(ssl)) < 0)          goto errssl;
         if ((err = SSL_write(ssl, buf, siz)) <= 0) goto errssl;
+        /* TODO add URI to history */
         uri[strcspn(uri, "?\0")] = 0;                         /* Remove old query from URI        */
-        for (siz=0; bsiz-siz-1 > 0 && (err = SSL_read(ssl, buf+siz, bsiz-siz-1)); siz+=err);
+        for (siz=0; bsiz-siz-1 > 0 && err; siz+=err)          /* Read from server untill the end  */
+                err = SSL_read(ssl, buf+siz, bsiz-siz-1);     /* Put entire response to main BUF  */
         buf[siz] = 0;
         bp = buf;
         next = strchr(bp, '\r');
@@ -81,7 +84,7 @@ uri:    j = strncmp(uri, "gemini://", 9) ? 9 : 0;
         } else if (buf[0] == '3') {                           /* Redirect                         */
                 sprintf(uri, "%.*s", KB, tmp +3);
                 goto uri;
-        } for (i=1; (next = strchr(bp, '\n')); bp = next+1) { /* Print content                    */
+        } for (i=1; (next = strchr(bp, '\n')); bp = next+1) { /* Print content line by line       */
                 if (!strncmp(bp, "=>", 2)) printf("[%d]\t", i++); /* It's-a Mee, URIoooo!         */
                 printf("%.*s\n", (int)(next-bp), bp);
         }
