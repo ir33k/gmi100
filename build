@@ -1,10 +1,7 @@
 #!/usr/bin/env sh
 set -ex # Stop on first error and log all commands
 
-# -D_POSIX_C_SOURCE=200112L flag in compiler or this define below is
-# necessary to programs that include netdb.h.
 gcc \
-    -Wall -Wextra -Wshadow -Wswitch-enum -pedantic -std=c99 \
+    -Wall -Wextra -Wshadow -Wswitch-enum -pedantic -std=c89 \
     -o gmi100 gmi100.c \
-    -lssl -lcrypto \
-    -D_POSIX_C_SOURCE=200112L
+    -lssl -lcrypto
