@@ -1,4 +1,4 @@
-#include <stdio.h>              /* Gemini CLI web client.                                 100x100 */
+#include <stdio.h>              /* Gemini CLI web client in 100 lines.                    100x100 */
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -6,20 +6,36 @@
 #include <netdb.h>
 #include <openssl/ssl.h>
 
-#define MAXW    72              /* CLI maximum number of displayed characters per line*/
-#define MAXH    20              /* CLI maximum number of displayed lines per page */
-#define URISIZ  1024            /* Gemini maximum URI size */
+#define MAXW      72            /* CLI maximum number of displayed characters per line */
+#define MAXH      20            /* CLI maximum number of displayed lines per page */
+#define KB      1024            /* One KiloByte is Gemini URI and Response header max size */
 
-char *net_err[] = {             /* Map h_errno to string, based on netdb.h srouce. */
+char *net_err[] = {             /* Map h_errno to string, based on netdb.h srouce */
     "", "HOST_NOT_FOUND", "TRY_AGAIN", "NO_RECOVERY", "NO_DATA"
 };
-char *ssl_err[] = {             /* Map SSL_get_error to string, based on ssl.h source. */
+char *ssl_err[] = {             /* Map SSL_get_error to string, based on ssl.h source */
     "NONE", "SSL", "WANT_READ", "WANT_WRITE", "WANT_X509_LOOKUP", "SYSCALL", "ZERO_RETURN",
     "WANT_CONNECT", "WANT_ACCEPT", "WANT_ASYNC", "WANT_ASYNC_JOB", "WANT_CLIENT_HELLO_CB"
 };
-
+int ssl_read_line(SSL *ssl, char *buf, size_t bufsiz, char **line, char *delim) {
+    int siz;
+    size_t len;
+    char *bp;
+    if (*delim) {
+        *line += strlen(*line) +1;
+    } else {
+        if ((siz = SSL_read(ssl, buf, bufsiz)) <= 0) return 0;
+        buf[siz] = 0;
+        *line = buf;
+    }
+    len = strcspn(*line, "\r\n\0");
+    bp = *line;
+    *delim = bp[len];
+    bp[len] = 0;
+    return 1;
+}
 int main(void) {
-    char input[URISIZ+1], buf[BUFSIZ], *line;
+    char input[KB+1], buf[BUFSIZ], str[BUFSIZ], *line, delim = 0;
     int i, siz, sfd, uri, err;
     struct hostent *he;
     struct sockaddr_in addr;
@@ -48,24 +64,19 @@ int main(void) {
             if ((he = gethostbyname(input)) == 0) goto errnet;
             for (i = 0; he->h_addr_list[i]; i++) {
                 addr.sin_addr.s_addr = *((unsigned long *)he->h_addr_list[i]);
-                err = connect(sfd, (struct sockaddr *)&addr, sizeof(addr));
-                if (err == 0) break;
+                if ((err = connect(sfd, (struct sockaddr *)&addr, sizeof(addr))) == 0) break;
             }
             if (err) goto errstd;
-            siz = sprintf(buf, "gemini://%s\r\n", input);
+            siz = sprintf(str, "gemini://%s\r\n", input);
             if ((ssl = SSL_new(ctx)) == 0)             goto errssl;
             if ((err = SSL_set_fd(ssl, sfd)) == 0)     goto errssl;
             if ((err = SSL_connect(ssl)) < 0)          goto errssl;
-            if ((err = SSL_write(ssl, buf, siz)) <= 0) goto errssl;
-            while ((siz = SSL_read(ssl, buf, BUFSIZ-1)) > 0) {
-                buf[siz] = 0;
-                line = strtok(buf, "\n");
-                do {
-                    printf("%s\n", line);
-                } while ((line = strtok(0, "\n")));
+            if ((err = SSL_write(ssl, str, siz)) <= 0) goto errssl;
+            while (ssl_read_line(ssl, buf, BUFSIZ, &line, &delim)) {
+                printf("line: <BEG>%s<END>%c\n", line, delim);
             }
             close(sfd);
-            SSL_free(ssl);      /* SSL_shutdown skipped on purpose */
+            SSL_free(ssl);  /* SSL_shutdown skipped on purpose */
             break;
         }
         continue;
