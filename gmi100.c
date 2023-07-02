@@ -10,7 +10,7 @@
 static const char *neterr[] = { "", "HOST_NOT_FOUND", "TRY_AGAIN", "NO_RECOVERY", "NO_DATA" };
 
 int main(void) {
-        char uri[KB+1], tmp[KB+1], *buf, *bp, *next, bool;
+        char uri[KB+1], tmp[KB+1], *buf, *bp, *next;
         int i, j, siz, sfd, err, bsiz;
         struct hostent *he;
         struct sockaddr_in addr;
@@ -39,25 +39,27 @@ start:  printf("gmi100: ");                                   /* Prompt, start o
                 if (strncmp(bp, "gemini://", 9)) strcat(uri, bp); /* Relative URI                 */
                 else strcpy(uri, bp);                         /* Absolute URI                     */
         } else strcpy(uri, tmp);                              /* Handle URL typed by hand         */
-uri:    for (i=j=0; uri[i] && i<KB && j<KB; tmp[j]=0, i++) {  /* Normalize URI                    */
+uri:    j = strncmp(uri, "gemini://", 9) ? 9 : 0;
+        if (j == 9) strcpy(tmp, "gemini://");
+        for (i=0; uri[i] && j<KB; tmp[j]=0, i++) {            /* Normalize URI                    */
                 if (uri[i] == '\n') continue;                 /* Skip new line characters         */
                 if (uri[i] != ' ') tmp[j++] = uri[i];         /* Copy regular characters          */
                 else if ((j+=3) < KB) strcat(tmp, "%20");     /* Replace whitepsace whit %20      */
         }
-        sprintf(uri, "%.*s", j, tmp);
-        fprintf(stderr, "@cli: request\t\"%s\"\n", uri);
+        strcpy(uri, tmp);
+        fprintf(stderr, "@cli: request\t\"%s\"\n", uri);      /* Log request URI                  */
         if ((sfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) goto errstd;
-        bool = strncmp(uri, "gemini://", 9);                  /* URI strarts with protocol        */
-        bp = uri + 9 * !bool;                                 /* Remove URI protocol              */
+        bp = uri + 9;                                         /* Remove URI protocol              */
         sprintf(tmp, "%.*s", (int)strcspn(bp, "/\0"), bp);    /* Extract URI host                 */
-        if ((he = gethostbyname(tmp)) == 0) goto errnet;
-        siz = sizeof(addr);
-        for (i = 0; he->h_addr_list[i]; i++) {
-                addr.sin_addr.s_addr = *((unsigned long*)he->h_addr_list[i]);
-                if ((err = connect(sfd, (struct sockaddr*)&addr, siz)) == 0) break;
+        fprintf(stderr, "@cli: host\t\"%s\"\n", tmp);         /* Log request hostname             */
+        if ((he = gethostbyname(tmp)) == 0) goto errnet;      /* Search for IP with hostname...   */
+        for (i = 0; he->h_addr_list[i]; i++) {                /* ...in list of all addresses      */
+                addr.sin_addr.s_addr = *((unsigned long*)he->h_addr_list[i]); /* Set address      */
+                err = connect(sfd, (struct sockaddr*)&addr, sizeof(addr)); /* Try to connect      */
+                if (err == 0) break;                          /* Success, connected with this IP  */
         }
-        if (err) goto errstd;
-        siz = sprintf(buf, "%s%.*s\r\n", bool ? "gemini://" : "", KB, uri);
+        if (err) goto errstd;                                 /* Failed to connect                */
+        siz = sprintf(buf, "%.*s\r\n", KB, uri);
         if ((ssl = SSL_new(ctx)) == 0)             goto errssl;
         if ((err = SSL_set_fd(ssl, sfd)) == 0)     goto errssl;
         if ((err = SSL_connect(ssl)) < 0)          goto errssl;
@@ -69,8 +71,8 @@ uri:    for (i=j=0; uri[i] && i<KB && j<KB; tmp[j]=0, i++) {  /* Normalize URI  
         next = strchr(bp, '\r');
         sprintf(tmp, "%.*s", (int)(next-bp), bp);
         bp = next+1;
-        fprintf(stderr, "@cli: response\t\"%s\"\n", tmp);
-        if (buf[0] == '1') {                                  /* Prompt                           */
+        fprintf(stderr, "@cli: response\t\"%s\"\n", tmp);     /* Log response header              */
+        if (buf[0] == '1') {                                  /* Prompt for search query          */
                 printf("Query: ");
                 strcat(uri, "?");
                 siz = strlen(uri);
@@ -79,7 +81,7 @@ uri:    for (i=j=0; uri[i] && i<KB && j<KB; tmp[j]=0, i++) {  /* Normalize URI  
         } else if (buf[0] == '3') {                           /* Redirect                         */
                 sprintf(uri, "%.*s", KB, tmp +3);
                 goto uri;
-        } for (i=1; (next = strchr(bp, '\n')); bp = next+1) { /* Print                            */
+        } for (i=1; (next = strchr(bp, '\n')); bp = next+1) { /* Print content                    */
                 if (!strncmp(bp, "=>", 2)) printf("[%d]\t", i++); /* It's-a Mee, URIoooo!         */
                 printf("%.*s\n", (int)(next-bp), bp);
         }
@@ -90,4 +92,4 @@ errnet: fprintf(stderr, "ERROR: NET %s\n", neterr[h_errno]);         goto start;
 errssl: fprintf(stderr, "ERROR: SSL %d\n", SSL_get_error(ssl, err)); goto start;
 quit:   SSL_CTX_free(ctx);
         return 0;
-}
+}                                                                                      /* 100x100 */
