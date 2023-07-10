@@ -10,7 +10,7 @@
 
 int main(void) {
         char uri[KB+1], tmp[KB+1], *buf, *bp, *next, *PROT="gemini://";
-        int i, j, siz, sfd, err, bsiz, history, PLEN=strlen(PROT);
+        int i, j, siz, sfd, err, bsiz, history, PLEN=strlen(PROT), maxw=71;
         FILE *fp; /* History file pointer */
         struct hostent *he;
         struct sockaddr_in addr;
@@ -29,7 +29,7 @@ start:  printf("gmi100> ");                     /* PROMPT start main loop */
         if (tmp[1] == '\n') switch (tmp[0]) {   /* PROMPT handle commands */
                 case 'q': goto quit;
                 case 'b': /* Go back in history */
-                        while (!fseek(fp, (--history), SEEK_SET) && history && fgetc(fp) != '\n');
+                        while (!fseek(fp, --history, SEEK_SET) && history && fgetc(fp) != '\n');
                         fgets(tmp, KB, fp);
                         goto uri;
         }
@@ -39,7 +39,7 @@ start:  printf("gmi100> ");                     /* PROMPT start main loop */
                 if (i || !bp) goto start;
                 for (bp += 3; *bp <= ' '; bp += 1);
                 bp[strcspn(bp, " \t\n\0")] = 0;
-                /* TODO(irek): I'm still missing case where there is relative URI but old URI did not ended with '/'. */
+                /* TODO(irek): I'm not pasing gemini://gemini.thebackupbox.net/test/torture/0002 */
                 if (!strncmp(bp, PROT, PLEN)) strcpy(tmp, bp);                  /* Absolute URI */
                 else if (bp[0] != '/') sprintf(tmp, "%s%s", uri, bp);           /* Relative URI */
                 else sprintf(tmp, "%.*s%s", (int)strcspn(uri, "/\0"), uri, bp); /* Root URI */
@@ -72,6 +72,7 @@ uri:    i = strncmp(tmp, PROT, PLEN) ? 0 : PLEN;   /* Skip protocol if provided 
         sprintf(tmp, "%.*s", (int)(next-bp), bp); /* Get response header */
         bp = next+1;
         fprintf(stderr, "@cli: response\t\"%s\"\n", tmp);
+        /* TODO(irek): I should handle somehow other content types than gemin/text */
         if (buf[0] == '1') {                                  /* RESPONSE prompt for query */
                 siz = sprintf(tmp, "%.*s?", (int)strcspn(uri, "?\0"), uri);
                 printf("Query: ");
@@ -87,6 +88,7 @@ uri:    i = strncmp(tmp, PROT, PLEN) ? 0 : PLEN;   /* Skip protocol if provided 
                         printf("[%d]\t%.*s\n\t", i++, siz, bp);
                         bp += siz + strspn(bp+siz, " \t");
                 }
+                for (;bp+maxw<next; bp+=maxw) printf("%.*s\\\n", maxw, bp);
                 printf("%.*s\n", (int)(next-bp), bp);
         }
         if (close(sfd)) ERR("Failed to close socket");
