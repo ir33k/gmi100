@@ -24,7 +24,7 @@ int main(void) {
         fseek(fp, 0, SEEK_END);
         back = ftell(fp)-1;
 start:  for (j=0; j<W+1; j++) fputc('.', stderr);   /* PROMPT Start main loop */
-        fputc('\r', stderr);
+        fprintf(stderr, "\r> ");
         if (!fgets(tmp, KB, stdin)) goto quit;
         if (tmp[0]=='\n' || tmp[1]=='\n') switch (tmp[0]) {    /* 1: Commands */
         case 'q': case 'c':  case 'x': goto quit;
