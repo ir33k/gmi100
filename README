@@ -9,8 +9,9 @@ Gemini CLI protocol client written in 100 lines of ANSI C.
 You should be able to compile with any C compiler that supports at c89
 standard.  OpenSSL [0] is the only dependency.
 
-        $ ./build       # Build
-        $ ./gmi100      # Run
+        $ ./build       # Build, you can use any compiler really
+        $ ./gmi100      # Run and type first URL to start browsing
+	> gemini.circumlunar.space
 
 Program prompts with line of dots where you can do few things:
 
@@ -85,8 +86,8 @@ bottom of the history file.  Example:
                                   >>>  gemini.circumlunar.space/
 
 
-                       MOTIVATION AND DECISIONS
-                       ========================
+		  MOTIVATION DECISIONS AND THOUGHTS
+                  =================================
 
 Authors of Gemini protocol claims that it should be possible to write
 Gemini client in modern language in less than 100 lines of code [1].
@@ -94,15 +95,48 @@ There are few projects that do that in programming languages with
 garbage collectors, build in dynamic data structures and useful std
 libraries for string manipulation, parsing URLs etc.
 
-Intuition suggest that such achievement is not possible in good old C.
+Intuition suggest that such achievement is not possible in plain C.
 Even tho I decided to start this silly project and see how far I can
-go with plain old ANSI C, std libraries and one dependency - OpenSSL.
+go with just ANSI C, std libraries and one dependency - OpenSSL.
 
 It took me around 3 weeks of lazy slow programming to get to this
 point but results exceeded my expectations.  It turned out that it's
 not only achievable but also it's possible to include many convenient
 features like persistent browsing history, links formatting, wrapping
-of lines and pagination.
+of lines, pagination and some error handling.
+
+My goal was to write in c89 standard avoiding any dirty tricks that
+could buy me more lines like defining imports and constant values in
+compiler command or writing multiple things in single line separated
+with semicolon.  I think that final result can be called a normal C
+code but OFC it is very dense, hard to read and uses practices that
+are normally not recommended.  Even tho I call it a success.
+
+I was not able to make better line wrapping work.  Ideally lines
+should wrap at last whitespace that fits within defined boundary and
+respects wide characters.  The best I could do in given constrains was
+to do a hard line wrap after defined number of bytes.  Yes - bytes, so
+it is possible to split wide character in half at the end of the line.
+This is the only thing that bothers me.  Line wrapping itself is very
+necessary to make pagination and pagination is necessary to make this
+program usable on terminals that does not support scrolling.  Maybe it
+would be better to somehow integrate gmi100 with pager like "less".
+Then I don't have to implement pagination and line wrapping at all.
+Idea for another time.
+
+I'm very happy that I was able to make browsing history work using
+external file and not and array like in most small implementation I
+have read.  With that this program is actually usable for me.  I'm
+very happy about how the history works which is out of the ordinary
+but I allows to have back and forward navigation with single logic.
+With that I could fit 2 functionalities in single implementation.
+
+I'm also very happy about links formatting.  Without this small
+adjustment of output text I would not like to use this program for
+actual browsing of Gemini space.
+
+I's amazing how much can fit in 100 lines of C.
+
 
 [0] https://www.openssl.org/
 [1] https://gemini.circumlunar.space/docs/faq.gmi
