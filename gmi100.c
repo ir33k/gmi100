@@ -15,7 +15,6 @@ int main(void) {
         struct sockaddr_in addr;
         SSL_CTX *ctx;
         SSL *ssl;
-
         buf = malloc((bsiz = 2*sysconf(_SC_PAGESIZE)));
         addr.sin_family = AF_INET;
         addr.sin_port = htons(1965); /* Gemini port */
@@ -24,7 +23,8 @@ int main(void) {
         if (!(fp = fopen(".gmi100", "a+b")))            ERR("fopen(.gmi100)");
         fseek(fp, 0, SEEK_END);
         back = ftell(fp)-1;
-start:  fprintf(stderr, "%*s]\r[ ", 79, "");        /* PROMPT Start main loop */
+start:  for (j=0; j<W+1; j++) fputc('.', stderr);   /* PROMPT Start main loop */
+        fputc('\r', stderr);
         if (!fgets(tmp, KB, stdin)) goto quit;
         if (tmp[0]=='\n' || tmp[1]=='\n') switch (tmp[0]) {    /* 1: Commands */
         case 'q': case 'c':  case 'x': goto quit;
