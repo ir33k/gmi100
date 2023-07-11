@@ -2,6 +2,6 @@
 set -ex # Stop on first error and log all commands
 
 gcc \
-    -Wall -Wextra -Wshadow -Wswitch-enum -pedantic -std=c89 \
+    -Wall -Wextra -pedantic -std=c89 \
     -o gmi100 gmi100.c \
     -lssl -lcrypto
