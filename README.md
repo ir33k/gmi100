@@ -1,30 +1,34 @@
+gmi100
+======
+
 Gemini CLI protocol client written in 100 lines of ANSI C.
 
+![demo.gif](demo.gif)
 
-                         BUILD RUN AND USAGE
-                         ===================
+Build, run and usage
+--------------------
 
-** See EXAMPLE file with dump from terminal that shows everything. **
+**See EXAMPLE file with dump from terminal that shows everything.**
 
 You should be able to compile with any C compiler that supports at c89
-standard.  OpenSSL [0] is the only dependency.
+standard.  [OpenSSL][0] is the only dependency.
 
-        $ ./build       # Build, you can use any compiler really
-        $ ./gmi100      # Run and type first URL to start browsing
+	$ ./build       # Build, you can use any compiler really
+	$ ./gmi100      # Run and type first URL to start browsing
 	> gemini.circumlunar.space
 
 Program prompts with line of dots where you can do few things:
 
-   1. Type Gemini URL to visit specific site.
-   2. Type "q" or "c" or "x" to quit.
-   3. Type "n" or "j" or press Enter (RET) to load next site page.
-   4. Type "r" or "0" or "k" to refresh current page.
-   5. Type "b" or "p" or "h" to go back in browsing history.
-   6. Type a number of link on current page, for example: "12".
+1. Type Gemini URL to visit specific site.
+2. Type `q` or `c` or `x` to quit.
+3. Type `n` or `j` or press Enter (`RET`) to load next site page.
+4. Type `r` or `0` or `k` to refresh current page.
+5. Type `b` or `p` or `h` to go back in browsing history.
+6. Type a number of link on current page, for example: `12`.
 
 
-                          HOW HISTORY WORKS
-                          =================
+How browsing history works
+--------------------------
 
 Browsing history in gmi100 works differently than regular "stack" way
 that is commonly used in browsers and other regular modern software.
@@ -53,44 +57,44 @@ navigate to other page by typing URL or choosing link number you will
 break that cycle.  Then history "pointer" will go back to the very
 bottom of the history file.  Example:
 
-        gmi100 input session      pos  .gmi100 history file content
-        ========================  ===  ===============================
+	gmi100 input session      pos  .gmi100 history file content
+	========================  ===  ===============================
+	
+	> ......................       <EMPTY HISTORY FILE>
+	
+	> tilde.pink............  >>>  tilde.pink
+	
+	> 2.....................       tilde.pink
+	                          >>>  tilde.pink/documentation.gmi
+	
+	> 2.....................       tilde.pink
+	                               tilde.pink/documentation.gmi
+	                          >>>  tilde.pink/docs/gemini.gmi
+	
+	> b.....................       tilde.pink
+	                          >>>  tilde.pink/documentation.gmi
+	                               tilde.pink/docs/gemini.gmi
+	                               tilde.pink/documentation.gmi
+	
+	> b.....................  >>>  tilde.pink
+	                               tilde.pink/documentation.gmi
+	                               tilde.pink/docs/gemini.gmi
+	                               tilde.pink/documentation.gmi
+	                               tilde.pink
+	
+	> 3.....................       tilde.pink
+	                               tilde.pink/documentation.gmi
+	                               tilde.pink/docs/gemini.gmi
+	                               tilde.pink/documentation.gmi
+	                               tilde.pink
+	                          >>>  gemini.circumlunar.space/
 
-        > ......................       <EMPTY HISTORY FILE>
 
-        > tilde.pink............  >>>  tilde.pink
-
-        > 2.....................       tilde.pink
-                                  >>>  tilde.pink/documentation.gmi
-
-        > 2.....................       tilde.pink
-                                       tilde.pink/documentation.gmi
-                                  >>>  tilde.pink/docs/gemini.gmi
-
-        > b.....................       tilde.pink
-                                  >>>  tilde.pink/documentation.gmi
-                                       tilde.pink/docs/gemini.gmi
-                                       tilde.pink/documentation.gmi
-
-        > b.....................  >>>  tilde.pink
-                                       tilde.pink/documentation.gmi
-                                       tilde.pink/docs/gemini.gmi
-                                       tilde.pink/documentation.gmi
-                                       tilde.pink
-
-        > 3.....................       tilde.pink
-                                       tilde.pink/documentation.gmi
-                                       tilde.pink/docs/gemini.gmi
-                                       tilde.pink/documentation.gmi
-                                       tilde.pink
-                                  >>>  gemini.circumlunar.space/
-
-
-		  MOTIVATION DECISIONS AND THOUGHTS
-                  =================================
+Motivation, decisions and thoughts
+----------------------------------
 
 Authors of Gemini protocol claims that it should be possible to write
-Gemini client in modern language in less than 100 lines of code [1].
+Gemini client in modern language [in less than 100 lines of code][1].
 There are few projects that do that in programming languages with
 garbage collectors, build in dynamic data structures and useful std
 libraries for string manipulation, parsing URLs etc.
@@ -138,5 +142,5 @@ actual browsing of Gemini space.
 I's amazing how much can fit in 100 lines of C.
 
 
-[0] https://www.openssl.org/
-[1] https://gemini.circumlunar.space/docs/faq.gmi
+[0]: https://www.openssl.org/
+[1]: https://gemini.circumlunar.space/docs/faq.gmi
