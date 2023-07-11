@@ -3,7 +3,6 @@
 #include <string.h>
 #include <netdb.h>
 #include <openssl/ssl.h>
-
 #define KB 1024
 #define ERR(msg)  do { fputs("ERROR: "msg"\n", stderr); return 1; } while(0)
 #define WARN(msg) do { fputs("WARNING: "msg"\n", stderr); goto start; } while(0)
@@ -39,15 +38,16 @@ start:  printf("gmi100> ");                     /* PROMPT start main loop */
                 if (i || !bp) goto start;
                 for (bp += 3; *bp <= ' '; bp += 1);
                 bp[strcspn(bp, " \t\n\0")] = 0;
-                /* TODO(irek): I'm not pasing gemini://gemini.thebackupbox.net/test/torture/0002 */
-                if (!strncmp(bp, PROT, PLEN)) strcpy(tmp, bp);                  /* Absolute URI */
-                else if (bp[0] != '/') sprintf(tmp, "%s%s", uri, bp);           /* Relative URI */
-                else sprintf(tmp, "%.*s%s", (int)strcspn(uri, "/\0"), uri, bp); /* Root URI */
+                if (strstr(bp, "//")) uri[0] = 0;
+                else if (bp[0] == '/') uri[strcspn(uri, "/\n\0")] = 0;
+                else if (!strncmp(&bp[i], "../", 2)); /* Keep whole uri */
+                else for(j = strlen(uri); j && uri[--j] != '/'; uri[j] = 0);
+                sprintf(tmp, "%s%s", uri, bp);
         }                                       /* PROMPT else handle URL typed by hand */
-uri:    i = strncmp(tmp, PROT, PLEN) ? 0 : PLEN;   /* Skip protocol if provided */
-        for (j=strlen(tmp)-1; tmp[j] == '\n' || tmp[j] == ' ' || tmp[j] == '\t'; j--); /* Trim */
+uri:    i = strstr(tmp, "//") ? (strncmp(tmp, PROT, PLEN) ? 2 : PLEN) : 0; /* Remove protocol */
+        for (j=strlen(tmp)-1; tmp[j] <= ' '; j--); /* Trim */
         for (tmp[j+1]=0, j=0; tmp[i] && j<KB; uri[j]=0, i++) { /* Normalize URI */
-                if (!strncmp(&tmp[i], "/..", 3)) for (j--, i+=2; uri[j] != '/'; j--);
+                if (!strncmp(&tmp[i], "../", 2)) for (j--, i+=2; uri[j-1] != '/'; j--);
                 else if (tmp[i] != ' ') uri[j++] = tmp[i];
                 else if ((j+=3) < KB) strcat(uri, "%20");
         }
@@ -73,6 +73,7 @@ uri:    i = strncmp(tmp, PROT, PLEN) ? 0 : PLEN;   /* Skip protocol if provided 
         bp = next+1;
         fprintf(stderr, "@cli: response\t\"%s\"\n", tmp);
         /* TODO(irek): I should handle somehow other content types than gemin/text */
+        /* TODO(irek): I'm not pasing gemini.thebackupbox.net/test/./torture/0011 */
         if (buf[0] == '1') {                                  /* RESPONSE prompt for query */
                 siz = sprintf(tmp, "%.*s?", (int)strcspn(uri, "?\0"), uri);
                 printf("Query: ");
