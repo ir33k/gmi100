@@ -9,7 +9,7 @@
 
 int main(void) {
         char uri[1024+1], tmp[1024+1], *buf, *bp=0, *next;
-        int i,j, siz, bsiz, sfd, err, back, KB=1024, W=71, H=12;
+        int i,j,siz,bsiz,sfd,err,back,KB=1024, W=71, H=12;
         FILE *fp; /* History file */
         struct hostent *he;
         struct sockaddr_in addr;
@@ -74,7 +74,6 @@ uri:    i = strstr(tmp, "//") ? (strncmp(tmp, "gemini:", 7) ? 2 : 9) : 0;
         SSL_free(ssl); /* No SSL_shutdown by design */
         next = strchr(bp, '\r');
         sprintf(tmp, "%.*s", (int)(next-bp), bp); /* Get response header */
-        fprintf(fp, "%s\n", uri); /* Append URI to history */
         if (tmp[0] == '1') {                               /* 1: Search query */
                 siz = sprintf(tmp, "%.*s?", (int)strcspn(uri, "?\0"), uri);
                 printf("Query: ");
@@ -94,6 +93,7 @@ next:   for (j=H; j-- && bp && *bp && (siz = strcspn(bp, "\n\0")) > -1;) {
                 printf("[%d]\t%.*s\n\t", ++i, siz, bp);
                 bp += siz + strspn(bp+siz, " \t");
         }
+        fprintf(fp, "%s\n", uri); /* Append URI to history */
         goto start;
 quit:   if (fclose(fp) == EOF) ERR("fclose(fp)");
         return 0;
