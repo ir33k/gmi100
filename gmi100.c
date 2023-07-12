@@ -1,34 +1,33 @@
 #include <stdio.h>    /* Gemini CLI protocol client written in 100 lines of C */
-#include <string.h>   /* v1.0 https://github.com/ir33k/gmi100 by irek@gabr.pl */
+#include <string.h>   /* v2.0 https://github.com/ir33k/gmi100 by irek@gabr.pl */
 #include <unistd.h>   /* This is free and unencumbered software released into */
 #include <netdb.h>    /* the public domain.  Read more: https://unlicense.org */
+#include <err.h>
 #include <openssl/ssl.h>
 
-#define ERR(msg)  do { fputs("ERROR: "msg"\n",   stderr); return 1;   } while(0)
 #define WARN(msg) do { fputs("WARNING: "msg"\n", stderr); goto start; } while(0)
 
 int main(void) {
-        char uri[1024+1], tmp[1024+1], *buf, *bp=0, *next;
-        int i,j,siz,bsiz,sfd,err,back,KB=1024, W=71, H=12;
+        char uri[1024+1], tmp[1024+1], *buf, *bp=0;
+        int i, j, siz, bsiz, sfd, back, KB=1024;
         FILE *fp; /* History file */
         struct hostent *he;
         struct sockaddr_in addr;
         SSL_CTX *ctx;
         SSL *ssl;
-        buf = malloc((bsiz = 2*sysconf(_SC_PAGESIZE)));
+
+        buf = malloc((bsiz = 4*sysconf(_SC_PAGESIZE)));
         addr.sin_family = AF_INET;
         addr.sin_port = htons(1965); /* Gemini port */
         SSL_library_init();
-        if (!(ctx = SSL_CTX_new(TLS_client_method())))  ERR("SSL_CTX_new");
-        if (!(fp = fopen(".gmi100", "a+b")))            ERR("fopen(.gmi100)");
+        if (!(ctx = SSL_CTX_new(TLS_client_method()))) errx(1, "SSL_CTX_new");
+        if (!(fp = fopen(".gmi100", "a+b"))) err(1, "fopen(.gmi100)");
         fseek(fp, 0, SEEK_END);
         back = ftell(fp)-1;
-start:  for (j=0; j<W+1; j++) fputc('.', stderr);   /* PROMPT Start main loop */
-        fprintf(stderr, "\r> ");
+start:  fprintf(stderr, "gmi100> ");                /* PROMPT Start main loop */
         if (!fgets(tmp, KB, stdin)) goto quit;
         if (tmp[0]=='\n' || tmp[1]=='\n') switch (tmp[0]) {    /* 1: Commands */
         case 'q': case 'c':  case 'x': goto quit;
-        case 'n': case '\n': case 'j': goto next;
         case 'r': case '0':  case 'k': strcpy(tmp, uri); goto uri; /* Refresh */
         case 'b': case 'p':  case 'h':
                 while (!fseek(fp, --back, 0) && back && fgetc(fp)!='\n');
@@ -60,41 +59,35 @@ uri:    i = strstr(tmp, "//") ? (strncmp(tmp, "gemini:", 7) ? 2 : 9) : 0;
         if ((he = gethostbyname(tmp)) == 0) WARN("gethostbyname");
         for (i=0; he->h_addr_list[i]; i++) {
                 addr.sin_addr.s_addr = *((unsigned long*)he->h_addr_list[i]);
-                err = connect(sfd, (struct sockaddr*)&addr, sizeof(addr));
-                if (!err) break; /* Success */
+                j = connect(sfd, (struct sockaddr*)&addr, sizeof(addr));
+                if (!j) break; /* Success */
         }
-        if (err) WARN("Failed to connect");
+        if (j) WARN("Failed to connect");
         siz = sprintf(buf, "gemini://%.*s\r\n", KB, uri);
-        if ((ssl = SSL_new(ctx)) == 0)            WARN("SSL_new");
-        if ((err = SSL_set_fd(ssl, sfd)) == 0)    WARN("SSL_set_fd");
-        if ((err = SSL_connect(ssl)) < 0)         WARN("SSL_connect");
-        if ((err = SSL_write(ssl, buf, siz)) < 1) WARN("SSL_write");
-        for (i=0, bp=buf, siz=0; bsiz-siz-1 > 0 && err; bp[siz+=err]=0)
-                err = SSL_read(ssl, buf+siz, bsiz-siz-1);
+        if ((ssl = SSL_new(ctx)) == 0)          WARN("SSL_new");
+        if ((j = SSL_set_fd(ssl, sfd)) == 0)    WARN("SSL_set_fd");
+        if ((j = SSL_connect(ssl)) < 0)         WARN("SSL_connect");
+        if ((j = SSL_write(ssl, buf, siz)) < 1) WARN("SSL_write");
+        for (bp=buf, siz=0; bsiz-siz-1 > 0 && j; bp[siz+=j]=0)
+                j = SSL_read(ssl, buf+siz, bsiz-siz-1);
         SSL_free(ssl); /* No SSL_shutdown by design */
-        next = strchr(bp, '\r');
-        sprintf(tmp, "%.*s", (int)(next-bp), bp); /* Get response header */
-        if (tmp[0] == '1') {                               /* 1: Search query */
+        if (buf[0] == '1') {                                         /* Query */
                 siz = sprintf(tmp, "%.*s?", (int)strcspn(uri, "?\0"), uri);
                 printf("Query: ");
                 fgets(tmp+siz, KB-siz, stdin);
                 goto uri;
-        } else if (tmp[0] == '3') {                            /* 2: Redirect */
-                for (i=0, j=3; tmp[j-1]; i++, j++) tmp[i]=tmp[j];
+        } else if (buf[0] == '3') {                               /* Redirect */
+                sprintf(tmp, "%.*s", (int)strcspn(bp+3, "\r\n"), bp+3);
                 goto uri;
-        }                                                    /* 3: Print body */
-        fprintf(fp, "%s\n", uri); /* Append URI to history */
-next:   for (j=H; j-- && bp && *bp && (siz = strcspn(bp, "\n\0")) > -1;) {
-                if (strncmp(bp, "=>", 2)) {
-                        printf("%.*s%s\n", siz<W ? siz:W, bp, siz<W ? "":"\\");
-                        bp += siz<W ? siz+1 : W;
-                        continue;
-                } /* Else It's-a Mee, URIoo! */
-                siz = strcspn((bp += 2+strspn(bp+2, " \t")), " \t\n\0");
-                printf("[%d]\t%.*s\n\t", ++i, siz, bp);
-                bp += siz + strspn(bp+siz, " \t");
+        } for (i=0; *bp && (siz=strcspn(bp, "\n\0")) > -1; bp+=siz+1) {
+                if (!strncmp(bp, "=>", 2)) { /* It's-a Mee, URIoo! */
+                        siz = strcspn((bp += 2+strspn(bp+2, " \t")), " \t\n\0");
+                        printf("[%d]\t%.*s\n\t", ++i, siz, bp);
+                        siz += strspn(bp+siz, " \t")-1;
+                } else printf("%.*s\n", siz, bp);
         }
+        fprintf(fp, "%s\n", uri); /* Append URI to history */
         goto start;
-quit:   if (fclose(fp) == EOF) ERR("fclose(fp)");
+quit:   if (fclose(fp) == EOF) err(1, "fclose");
         return 0;
 }
