@@ -64,7 +64,7 @@ uri:    i = strstr(tmp, "//") ? (strncmp(tmp, "gemini:", 7) ? 2 : 9) : 0;
                 if (!err) break; /* Success */
         }
         if (err) WARN("Failed to connect");
-        siz = sprintf(buf, "%s%.*s\r\n", "gemini://", KB, uri);
+        siz = sprintf(buf, "gemini://%.*s\r\n", KB, uri);
         if ((ssl = SSL_new(ctx)) == 0)            WARN("SSL_new");
         if ((err = SSL_set_fd(ssl, sfd)) == 0)    WARN("SSL_set_fd");
         if ((err = SSL_connect(ssl)) < 0)         WARN("SSL_connect");
@@ -83,6 +83,7 @@ uri:    i = strstr(tmp, "//") ? (strncmp(tmp, "gemini:", 7) ? 2 : 9) : 0;
                 for (i=0, j=3; tmp[j-1]; i++, j++) tmp[i]=tmp[j];
                 goto uri;
         }                                                    /* 3: Print body */
+        fprintf(fp, "%s\n", uri); /* Append URI to history */
 next:   for (j=H; j-- && bp && *bp && (siz = strcspn(bp, "\n\0")) > -1;) {
                 if (strncmp(bp, "=>", 2)) {
                         printf("%.*s%s\n", siz<W ? siz:W, bp, siz<W ? "":"\\");
@@ -93,7 +94,6 @@ next:   for (j=H; j-- && bp && *bp && (siz = strcspn(bp, "\n\0")) > -1;) {
                 printf("[%d]\t%.*s\n\t", ++i, siz, bp);
                 bp += siz + strspn(bp+siz, " \t");
         }
-        fprintf(fp, "%s\n", uri); /* Append URI to history */
         goto start;
 quit:   if (fclose(fp) == EOF) ERR("fclose(fp)");
         return 0;
