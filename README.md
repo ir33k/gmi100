@@ -5,26 +5,27 @@ Gemini CLI protocol client written in 100 lines of ANSI C.
 
 ![demo.gif](demo.gif)
 
+
 Build, run and usage
 --------------------
 
-**See EXAMPLE file with dump from terminal that shows everything.**
+Compile with any C compiler or you can try `build` script.
+[OpenSSL][0] is the only dependency.
 
-You should be able to compile with any C compiler that supports at c89
-standard.  [OpenSSL][0] is the only dependency.
-
-	$ ./build       # Build, you can use any compiler really
-	$ ./gmi100      # Run and type first URL to start browsing
+	$ ./build              # Compile
+	$ ./gmi100             # Run using default "cat" pager
+	$ ./gmi100 "less -X"   # Run using different pager
+	$ ./gmi100 more        # Run using different pager
 	> gemini.circumlunar.space
 
-Program prompts with line of dots where you can do few things:
+In `gmi100>` prompt you can take few actions:
 
 1. Type Gemini URL to visit specific site.
-2. Type `q` or `c` or `x` to quit.
-3. Type `n` or `j` or press Enter (`RET`) to load next site page.
+2. Type a number of link on current page, for example: `12`.
+3. Type `q` or `e` or `x` to quit.
 4. Type `r` or `0` or `k` to refresh current page.
-5. Type `b` or `p` or `h` to go back in browsing history.
-6. Type a number of link on current page, for example: `12`.
+5. Type `b` or `p` or `h` to go back in browsing history.  Browsing
+   history is persistent between sessions.
 
 
 Configuration
@@ -33,17 +34,9 @@ Configuration
 Right now there is no convenient method of configuration.  You have to
 do it manually in code and recompile.  To change:
 
-- path to history file - modify first argument of `fopen`.
-- width of the lines - modify value of `W` variable.
-- maximum number of printed lines - modify value of `H` variable.
+- path to history file - modify first argument of first `fopen`.
 - used memory (might be important for very big sites) modify `malloc`.
 - shortcuts - modify cases in `switch` statement.
-
-I would like to add possibility to modify some of those things without
-modifying the source code.  I could use external configuration file
-like in Suckless software or pass constant values to program with
-compiler flags.  But I would prefer to do it with program arguments or
-environment variables.  We will see.
 
 
 How browsing history works
@@ -76,41 +69,43 @@ navigate to other page by typing URL or choosing link number you will
 break that cycle.  Then history "pointer" will go back to the very
 bottom of the history file.  Example:
 
-	gmi100 input session      pos  .gmi100 history file content
-	========================  ===  ===============================
+	gmi100 session      pos  .gmi100 history file content
+	==================  ===  ===============================
 	
-	> ......................       <EMPTY HISTORY FILE>
+	gmi100>                  <EMPTY HISTORY FILE>
 	
-	> tilde.pink............  >>>  tilde.pink
+	gmi100> tilde.pink  >>>  tilde.pink
 	
-	> 2.....................       tilde.pink
-	                          >>>  tilde.pink/documentation.gmi
+	gmi100> 2                tilde.pink
+	                    >>>  tilde.pink/documentation.gmi
 	
-	> 2.....................       tilde.pink
-	                               tilde.pink/documentation.gmi
-	                          >>>  tilde.pink/docs/gemini.gmi
+	gmi100> 2                tilde.pink
+	                         tilde.pink/documentation.gmi
+	                    >>>  tilde.pink/docs/gemini.gmi
 	
-	> b.....................       tilde.pink
-	                          >>>  tilde.pink/documentation.gmi
-	                               tilde.pink/docs/gemini.gmi
-	                               tilde.pink/documentation.gmi
+	gmi100> b                tilde.pink
+	                    >>>  tilde.pink/documentation.gmi
+	                         tilde.pink/docs/gemini.gmi
+	                         tilde.pink/documentation.gmi
 	
-	> b.....................  >>>  tilde.pink
-	                               tilde.pink/documentation.gmi
-	                               tilde.pink/docs/gemini.gmi
-	                               tilde.pink/documentation.gmi
-	                               tilde.pink
+	gmi100> b           >>>  tilde.pink
+	                         tilde.pink/documentation.gmi
+	                         tilde.pink/docs/gemini.gmi
+	                         tilde.pink/documentation.gmi
+	                         tilde.pink
 	
-	> 3.....................       tilde.pink
-	                               tilde.pink/documentation.gmi
-	                               tilde.pink/docs/gemini.gmi
-	                               tilde.pink/documentation.gmi
-	                               tilde.pink
-	                          >>>  gemini.circumlunar.space/
+	gmi100> 3                tilde.pink
+	                         tilde.pink/documentation.gmi
+	                         tilde.pink/docs/gemini.gmi
+	                         tilde.pink/documentation.gmi
+	                         tilde.pink
+	                    >>>  gemini.circumlunar.space/
 
 
-Motivation, decisions and thoughts
-----------------------------------
+Devlog
+------
+
+### 2023.07.11 Initial motivation and thoughts
 
 Authors of Gemini protocol claims that it should be possible to write
 Gemini client in modern language [in less than 100 lines of code][1].
@@ -140,12 +135,13 @@ should wrap at last whitespace that fits within defined boundary and
 respects wide characters.  The best I could do in given constrains was
 to do a hard line wrap after defined number of bytes.  Yes - bytes, so
 it is possible to split wide character in half at the end of the line.
-This is the only thing that bothers me.  Line wrapping itself is very
-necessary to make pagination and pagination is necessary to make this
-program usable on terminals that does not support scrolling.  Maybe it
-would be better to somehow integrate gmi100 with pager like "less".
-Then I don't have to implement pagination and line wrapping at all.
-Idea for another time.
+It can ruin ASCII art that uses non ASCII characters and sites written
+mainly without ASCII characters.  This is the only thing that bothers
+me.  Line wrapping itself is very necessary to make pagination and
+pagination is necessary to make this program usable on terminals that
+does not support scrolling.  Maybe it would be better to somehow
+integrate gmi100 with pager like "less".  Then I don't have to
+implement pagination and line wrapping at all.  That would be great.
 
 I'm very happy that I was able to make browsing history work using
 external file and not and array like in most small implementation I
@@ -167,6 +163,13 @@ echo "some.default.page.com" | gmi100
 ```
 
 I's amazing how much can fit in 100 lines of C.
+
+### 2023.07.12 - v2.0 the pager
+
+Removing manual line wrapping and pagination in favor of pager program
+that can be changed at any time was a great idea.  I love to navigate
+Gemini holes with `cat` as pager when I'm in Emacs and with `less -X`
+when in terminal.
 
 
 [0]: https://www.openssl.org/

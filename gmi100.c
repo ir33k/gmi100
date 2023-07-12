@@ -7,36 +7,36 @@
 
 #define WARN(msg) do { fputs("WARNING: "msg"\n", stderr); goto start; } while(0)
 
-int main(void) {
-        char uri[1024+1], tmp[1024+1], *buf, *bp=0;
-        int i, j, siz, bsiz, sfd, back, KB=1024;
-        FILE *fp; /* History file */
+int main(int argc, char **argv) {
+        char uri[1024+1], buf[1024+1], *res, *bp=0, *path=tmpnam(0);
+        int i, j, siz, rsiz, sfd, hp, KB=1024;
+        FILE *history, *tmp;
         struct hostent *he;
         struct sockaddr_in addr;
         SSL_CTX *ctx;
         SSL *ssl;
 
-        buf = malloc((bsiz = 4*sysconf(_SC_PAGESIZE)));
+        res = malloc((rsiz = 4*sysconf(_SC_PAGESIZE)));
         addr.sin_family = AF_INET;
         addr.sin_port = htons(1965); /* Gemini port */
         SSL_library_init();
         if (!(ctx = SSL_CTX_new(TLS_client_method()))) errx(1, "SSL_CTX_new");
-        if (!(fp = fopen(".gmi100", "a+b"))) err(1, "fopen(.gmi100)");
-        fseek(fp, 0, SEEK_END);
-        back = ftell(fp)-1;
+        if (!(history = fopen(".gmi100", "a+b"))) err(1, "fopen(.gmi100)");
+        fseek(history, 0, SEEK_END);
+        hp = ftell(history)-1;
 start:  fprintf(stderr, "gmi100> ");                /* PROMPT Start main loop */
-        if (!fgets(tmp, KB, stdin)) goto quit;
-        if (tmp[0]=='\n' || tmp[1]=='\n') switch (tmp[0]) {    /* 1: Commands */
-        case 'q': case 'c':  case 'x': goto quit;
-        case 'r': case '0':  case 'k': strcpy(tmp, uri); goto uri; /* Refresh */
+        if (!fgets(buf, KB, stdin)) goto quit;
+        if (buf[0]=='\n' || buf[1]=='\n') switch (buf[0]) {    /* 1: Commands */
+        case 'q': case 'e':  case 'x': goto quit;
+        case 'r': case '0':  case 'k': strcpy(buf, uri); goto uri; /* Refresh */
         case 'b': case 'p':  case 'h':
-                while (!fseek(fp, --back, 0) && back && fgetc(fp)!='\n');
-                fgets(tmp, KB, fp);
+                while (!fseek(history, --hp, 0) && hp && fgetc(history)!='\n');
+                fgets(buf, KB, history);
                 goto uri;
         }
-        back = ftell(fp)-1; /* Reset history position */
-        if ((i = atoi(tmp)) > 0) {                           /* 2: Navigation */
-                for (bp = buf; i && bp; i--) bp = strstr(bp+3, "\n=>");
+        hp = ftell(history)-1; /* Reset history position */
+        if ((i = atoi(buf)) > 0) {                           /* 2: Navigation */
+                for (bp = res; i && bp; i--) bp = strstr(bp+3, "\n=>");
                 if (i || !bp) goto start;
                 for (bp += 3; *bp <= ' '; bp += 1);
                 bp[strcspn(bp, " \t\n\0")] = 0;
@@ -44,50 +44,55 @@ start:  fprintf(stderr, "gmi100> ");                /* PROMPT Start main loop */
                 else if (bp[0] == '/') uri[strcspn(uri, "/\n\0")] = 0;
                 else if (!strncmp(&bp[i], "../", 2)); /* Keep whole uri */
                 else for(j = strlen(uri); j && uri[--j] != '/'; uri[j] = 0);
-                sprintf(tmp, "%s%s", uri, bp);
+                sprintf(buf, "%s%s", uri, bp);
         }                                                     /* 3: Typed URL */
-uri:    i = strstr(tmp, "//") ? (strncmp(tmp, "gemini:", 7) ? 2 : 9) : 0;
-        for (j=strlen(tmp)-1; tmp[j] <= ' '; j--); /* Trim */
-        for (tmp[j+1]=0, j=0; tmp[i] && j<KB; uri[j]=0, i++) {
-                if (!strncmp(&tmp[i], "../", 2)) for (i+=2; uri[--j-1] != '/';);
-                else if (tmp[i] != ' ') uri[j++] = tmp[i];
+uri:    i = strstr(buf, "//") ? (strncmp(buf, "gemini:", 7) ? 2 : 9) : 0;
+        for (j=strlen(buf)-1; buf[j] <= ' '; j--); /* Trim */
+        for (buf[j+1]=0, j=0; buf[i] && j<KB; uri[j]=0, i++) {
+                if (!strncmp(&buf[i], "../", 2)) for (i+=2; uri[--j-1] != '/';);
+                else if (buf[i] != ' ') uri[j++] = buf[i];
                 else if ((j+=3) < KB) strcat(uri, "%20");
         }
         fprintf(stderr, "%s\n", uri);
         if ((sfd=socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) WARN("socket");
-        sprintf(tmp, "%.*s", (int)strcspn(uri, ":/\0"), uri);
-        if ((he = gethostbyname(tmp)) == 0) WARN("gethostbyname");
+        sprintf(buf, "%.*s", (int)strcspn(uri, ":/\0"), uri);
+        if ((he = gethostbyname(buf)) == 0) WARN("Invalid host");
         for (i=0; he->h_addr_list[i]; i++) {
                 addr.sin_addr.s_addr = *((unsigned long*)he->h_addr_list[i]);
                 j = connect(sfd, (struct sockaddr*)&addr, sizeof(addr));
                 if (!j) break; /* Success */
         }
         if (j) WARN("Failed to connect");
-        siz = sprintf(buf, "gemini://%.*s\r\n", KB, uri);
+        siz = sprintf(res, "gemini://%.*s\r\n", KB, uri);
         if ((ssl = SSL_new(ctx)) == 0)          WARN("SSL_new");
         if ((j = SSL_set_fd(ssl, sfd)) == 0)    WARN("SSL_set_fd");
         if ((j = SSL_connect(ssl)) < 0)         WARN("SSL_connect");
-        if ((j = SSL_write(ssl, buf, siz)) < 1) WARN("SSL_write");
-        for (bp=buf, siz=0; bsiz-siz-1 > 0 && j; bp[siz+=j]=0)
-                j = SSL_read(ssl, buf+siz, bsiz-siz-1);
+        if ((j = SSL_write(ssl, res, siz)) < 1) WARN("SSL_write");
+        for (bp=res, siz=0; rsiz-siz-1 > 0 && j; bp[siz+=j]=0)
+                j = SSL_read(ssl, res+siz, rsiz-siz-1);
         SSL_free(ssl); /* No SSL_shutdown by design */
-        if (buf[0] == '1') {                                         /* Query */
-                siz = sprintf(tmp, "%.*s?", (int)strcspn(uri, "?\0"), uri);
+        if (res[0] == '1') {                                         /* Query */
+                siz = sprintf(buf, "%.*s?", (int)strcspn(uri, "?\0"), uri);
                 printf("Query: ");
-                fgets(tmp+siz, KB-siz, stdin);
+                fgets(buf+siz, KB-siz, stdin);
                 goto uri;
-        } else if (buf[0] == '3') {                               /* Redirect */
-                sprintf(tmp, "%.*s", (int)strcspn(bp+3, "\r\n"), bp+3);
+        } else if (res[0] == '3') {                               /* Redirect */
+                sprintf(buf, "%.*s", (int)strcspn(bp+3, "\r\n"), bp+3);
                 goto uri;
-        } for (i=0; *bp && (siz=strcspn(bp, "\n\0")) > -1; bp+=siz+1) {
+        }
+        if (!(tmp = fopen(path, "wb"))) err(1, "fopen(%s)", path);
+        for (i=0; *bp && (siz=strcspn(bp, "\n\0")) > -1; bp+=siz+1) {
                 if (!strncmp(bp, "=>", 2)) { /* It's-a Mee, URIoo! */
                         siz = strcspn((bp += 2+strspn(bp+2, " \t")), " \t\n\0");
-                        printf("[%d]\t%.*s\n\t", ++i, siz, bp);
+                        fprintf(tmp, "[%d]\t%.*s\n\t", ++i, siz, bp);
                         siz += strspn(bp+siz, " \t")-1;
-                } else printf("%.*s\n", siz, bp);
+                } else fprintf(tmp, "%.*s\n", siz, bp);
         }
-        fprintf(fp, "%s\n", uri); /* Append URI to history */
+        if (fclose(tmp) == EOF) err(1, "fclose(%s)", path);
+        fprintf(history, "%s\n", uri);
+        sprintf(buf, "%.128s %s", argc > 1 ? argv[1] : "cat", path);
+        system(buf);            /* Show response in pager, cat by default */
         goto start;
-quit:   if (fclose(fp) == EOF) err(1, "fclose");
+quit:   if (fclose(history) == EOF) err(1, "fclose(history)");
         return 0;
 }
