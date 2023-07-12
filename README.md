@@ -27,6 +27,25 @@ Program prompts with line of dots where you can do few things:
 6. Type a number of link on current page, for example: `12`.
 
 
+Configuration
+-------------
+
+Right now there is no convenient method of configuration.  You have to
+do it manually in code and recompile.  To change:
+
+- path to history file - modify first argument of `fopen`.
+- width of the lines - modify value of `W` variable.
+- maximum number of printed lines - modify value of `H` variable.
+- used memory (might be important for very big sites) modify `malloc`.
+- shortcuts - modify cases in `switch` statement.
+
+I would like to add possibility to modify some of those things without
+modifying the source code.  I could use external configuration file
+like in Suckless software or pass constant values to program with
+compiler flags.  But I would prefer to do it with program arguments or
+environment variables.  We will see.
+
+
 How browsing history works
 --------------------------
 
@@ -138,6 +157,14 @@ With that I could fit 2 functionalities in single implementation.
 I'm also very happy about links formatting.  Without this small
 adjustment of output text I would not like to use this program for
 actual browsing of Gemini space.
+
+I thought about adding "default site" being the Gemini capsule that
+opens by default when you run the program.  But that can be easily
+done with small shell script or alias so I'm not going to do it.
+
+```sh
+echo "some.default.page.com" | gmi100
+```
 
 I's amazing how much can fit in 100 lines of C.
 
