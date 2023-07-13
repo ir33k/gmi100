@@ -8,7 +8,7 @@
 #define WARN(msg) do { fputs("WARNING: "msg"\n", stderr); goto start; } while(0)
 
 int main(int argc, char **argv) {
-        char uri[1024+1], buf[1024+1], *res, *bp=0, *PATH=tmpnam(0);
+        char uri[1024+1], buf[1024+1], *res, *bp, *PATH=tmpnam(0);
         int i, j, siz, rsiz, sfd, hp, KB=1024;
         FILE *history, *tmp;
         struct hostent *he;
@@ -28,7 +28,7 @@ start:  fprintf(stderr, "gmi100> ");                /* PROMPT Start main loop */
         if (!fgets(buf, KB, stdin)) goto quit;
         if (buf[1]=='\n') switch (buf[0]) {                    /* 1: Commands */
         case 'q': goto quit;
-        case '0': strcpy(buf, uri); goto uri; /* Refresh */
+        case 'r': strcpy(buf, uri); goto uri; /* Refresh */
         case 'u': sprintf(buf, "%.1021s../", uri); goto uri; /* Up URI dir */
         case 'b': /* Go back in browsing history */
                 while (!fseek(history, --hp, 0) && hp && fgetc(history)!='\n');
@@ -41,9 +41,10 @@ start:  fprintf(stderr, "gmi100> ");                /* PROMPT Start main loop */
                 if (i || !bp) goto start;
                 for (bp += 3; *bp <= ' '; bp += 1);
                 bp[strcspn(bp, " \t\n\0")] = 0;
-                if (strstr(bp, "//")) uri[0] = 0;
+                if (strstr(bp, "//")) uri[0] = 0; /* Absolute */
                 else if (bp[0] == '/') uri[strcspn(uri, "/\n\0")] = 0;
                 else if (!strncmp(&bp[i], "../", 2)); /* Keep whole uri */
+                else if (!strchr(uri, '/')) strcat(uri, "/");
                 else for(j = strlen(uri); j && uri[--j] != '/'; uri[j] = 0);
                 sprintf(buf, "%s%s", uri, bp);
         }                                                     /* 3: Typed URL */
@@ -54,6 +55,7 @@ uri:    i = strstr(buf, "//") ? (strncmp(buf, "gemini:", 7) ? 2 : 9) : 0;
                 else if (buf[i] != ' ') uri[j++] = buf[i];
                 else if ((j+=3) < KB) strcat(uri, "%20");
         }
+        fprintf(stderr, "gemini://%s\n", uri);
         if ((sfd=socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) WARN("socket");
         sprintf(buf, "%.*s", (int)strcspn(uri, ":/\0"), uri);
         if ((he = gethostbyname(buf)) == 0) WARN("Invalid host");
@@ -81,8 +83,6 @@ uri:    i = strstr(buf, "//") ? (strncmp(buf, "gemini:", 7) ? 2 : 9) : 0;
                 goto uri;
         }
         if (!(tmp = fopen(PATH, "wb"))) err(1, "fopen(%s)", PATH);   /* Print */
-        fprintf(tmp, "[0]\tgemini://%s\n\t", uri);
-	bp[strcspn(bp, "\r\n")] = '\n';
         for (i=0; *bp && (siz=strcspn(bp, "\n\0")) > -1; bp+=siz+1) {
                 if (!strncmp(bp, "=>", 2)) { /* It's-a Mee, URIoo! */
                         siz = strcspn((bp += 2+strspn(bp+2, " \t")), " \t\n\0");

@@ -23,9 +23,7 @@ In `gmi100>` prompt you can take few actions:
 1. Type Gemini URL to visit specific site.
 2. Type a number of link on current page, for example: `12`.
 3. Type `q` to quit.
-4. Type `0` to refresh current page.  First link is always linking to
-   currently displayed page.  You can see it at the top of the page
-   with response header as link description.
+4. Type `r` to refresh current page.
 5. Type `u` to go "up" in URL directory path.
 6. Type `b` to go back in browsing history.  Browsing history is
    persistent between sessions.
@@ -211,20 +209,6 @@ I finally found it.  I had to use `SSL_set_tlsext_host_name` before
 establishing connection.  I would not be able to figured it out by
 myself.  All thanks to source code of project [gplaces][2].  And yes,
 it's 5 am.
-
-### 2023.07.13 Thu 05:31
-
-I like how by printing response header and whole links user can see
-more information about the page that would be normally hidden.  In
-case of links.  Usually when there is a link description then the link
-itself is hidden.  When you have graphical interface then you can show
-it on hover or something like that, sure.  But in case of this simple
-program it's just better to display it as it is.  Whole link tells you
-about protocol of page you navigate to and about file it opens.  Is it
-a image, or CGI script etc.  In case of response header.  It makes
-sense to show it as this simple client does nothing to most of the
-response codes.  That way you can see what is going on when you get
-something else than "20".
 
 
 [0]: https://www.openssl.org/
