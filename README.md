@@ -12,20 +12,20 @@ Build, run and usage
 Compile with any C compiler or you can try `build` script.
 [OpenSSL][0] is the only dependency.
 
-	$ ./build              # Compile
-	$ ./gmi100             # Run using default "cat" pager
-	$ ./gmi100 "less -X"   # Run using different pager
-	$ ./gmi100 more        # Run using different pager
+	$ ./build               # Compile on Linux
+	$ ./gmi100              # Run with default "less -Xi" pager
+	$ ./gmi100 more         # Run using "more" pager
+	$ ./gmi100 cat          # Run using "cat" as pager
 	> gemini.circumlunar.space
 
 In `gmi100>` prompt you can take few actions:
 
 1. Type Gemini URL to visit specific site.
 2. Type a number of link on current page, for example: `12`.
-3. Type `q` or `e` or `x` to quit.
-4. Type `r` or `0` or `k` to refresh current page.
-5. Type `b` or `p` or `h` to go back in browsing history.  Browsing
-   history is persistent between sessions.
+3. Type `q` to quit.
+4. Type `0` to refresh current page.
+5. Type `b` to go back in browsing history.  Browsing history is
+   persistent between sessions.
 
 
 Configuration
@@ -171,6 +171,45 @@ that can be changed at any time was a great idea.  I love to navigate
 Gemini holes with `cat` as pager when I'm in Emacs and with `less -X`
 when in terminal.
 
+### 2023.07.12 Wed 19:48 - v2.1 SSL issues and other changes
+
+After using gmi100 for some time I noticed that often you stumble upon
+a capsule by navigating directly to some distant path pointing at some
+gemlog entry.  But then you want to visit home page of this author.
+With current setup you would had to type URL by hand if visited page
+did not provided handy "Go home" link.  Then I recalled that many GUI
+browsers include "Up" and "Go home" buttons because you are able to
+easily modify current URI to achieve such navigation.  This was
+trivial to add in gmi100.  Required only single line that appends
+`../` to current URI.  I added only "Up" functionality as navigation
+to "Home" can be achieved by using "Up" few times in row and I don't
+want to loose precious lines of code.
+
+More than that, I changed default pager to `less` as it provides the
+best experience in terminal and this is what people will use most of
+the time including me.  For special cases in Emacs I can change pager
+to `cat` with ease anyway.
+
+Back to the main topic.  I had troubles opening many pages from
+specific domains.  All of those probably run on the same server.  Some
+kind o SSL error, not very specific.  I was able to open those pages
+with this simple line of code:
+
+```sh
+$ openssl s_client -crlf -ign_eof -quiet -connect senders.io:1965 <<< "gemini://senders.io:1965/gemlog/"
+```
+
+Which means that servers work fine and there is something wrong in my
+code.  I'm probably missing some SSL setting.
+
+### 2023.07.13 Thu 04:56 - `SSL_ERROR_SSL` error fixed
+
+I finally fixed it.  I had to use `SSL_set_tlsext_host_name` before
+establishing connection.  I would not be able to figured it out by
+myself.  All thanks to source code of project "gplaces" [2].  And
+yes - it's 5 am.
+
 
 [0]: https://www.openssl.org/
 [1]: https://gemini.circumlunar.space/docs/faq.gmi
+[2]: https://github.com/dimkr/gplaces/blob/gemini/gplaces.c#L841

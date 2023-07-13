@@ -1,5 +1,5 @@
 #include <stdio.h>    /* Gemini CLI protocol client written in 100 lines of C */
-#include <string.h>   /* v2.0 https://github.com/ir33k/gmi100 by irek@gabr.pl */
+#include <string.h>   /* v2.2 https://github.com/ir33k/gmi100 by irek@gabr.pl */
 #include <unistd.h>   /* This is free and unencumbered software released into */
 #include <netdb.h>    /* the public domain.  Read more: https://unlicense.org */
 #include <err.h>
@@ -8,7 +8,7 @@
 #define WARN(msg) do { fputs("WARNING: "msg"\n", stderr); goto start; } while(0)
 
 int main(int argc, char **argv) {
-        char uri[1024+1], buf[1024+1], *res, *bp=0, *path=tmpnam(0);
+        char uri[1024+1], buf[1024+1], *res, *bp=0, *PATH=tmpnam(0);
         int i, j, siz, rsiz, sfd, hp, KB=1024;
         FILE *history, *tmp;
         struct hostent *he;
@@ -26,10 +26,11 @@ int main(int argc, char **argv) {
         hp = ftell(history)-1;
 start:  fprintf(stderr, "gmi100> ");                /* PROMPT Start main loop */
         if (!fgets(buf, KB, stdin)) goto quit;
-        if (buf[0]=='\n' || buf[1]=='\n') switch (buf[0]) {    /* 1: Commands */
-        case 'q': case 'e':  case 'x': goto quit;
-        case 'r': case '0':  case 'k': strcpy(buf, uri); goto uri; /* Refresh */
-        case 'b': case 'p':  case 'h':
+        if (buf[1]=='\n') switch (buf[0]) {                    /* 1: Commands */
+        case 'q': goto quit;
+        case '0': strcpy(buf, uri); goto uri; /* Refresh */
+        case 'u': sprintf(buf, "%.1021s../", uri); goto uri; /* Up URI dir */
+        case 'b': /* Go back in browsing history */
                 while (!fseek(history, --hp, 0) && hp && fgetc(history)!='\n');
                 fgets(buf, KB, history);
                 goto uri;
@@ -53,22 +54,21 @@ uri:    i = strstr(buf, "//") ? (strncmp(buf, "gemini:", 7) ? 2 : 9) : 0;
                 else if (buf[i] != ' ') uri[j++] = buf[i];
                 else if ((j+=3) < KB) strcat(uri, "%20");
         }
-        fprintf(stderr, "%s\n", uri);
         if ((sfd=socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) WARN("socket");
         sprintf(buf, "%.*s", (int)strcspn(uri, ":/\0"), uri);
         if ((he = gethostbyname(buf)) == 0) WARN("Invalid host");
-        for (i=0; he->h_addr_list[i]; i++) {
+        for (i=0, j=1; j && he->h_addr_list[i]; i++) {
                 addr.sin_addr.s_addr = *((unsigned long*)he->h_addr_list[i]);
                 j = connect(sfd, (struct sockaddr*)&addr, sizeof(addr));
-                if (!j) break; /* Success */
         }
         if (j) WARN("Failed to connect");
         siz = sprintf(res, "gemini://%.*s\r\n", KB, uri);
-        if ((ssl = SSL_new(ctx)) == 0)          WARN("SSL_new");
-        if ((j = SSL_set_fd(ssl, sfd)) == 0)    WARN("SSL_set_fd");
-        if ((j = SSL_connect(ssl)) < 0)         WARN("SSL_connect");
-        if ((j = SSL_write(ssl, res, siz)) < 1) WARN("SSL_write");
-        for (bp=res, siz=0; rsiz-siz-1 > 0 && j; bp[siz+=j]=0)
+        if ((ssl = SSL_new(ctx)) == 0)           WARN("SSL_new");
+        if (!SSL_set_tlsext_host_name(ssl, buf)) WARN("SSL_set_tlsext");
+        if (!SSL_set_fd(ssl, sfd))               WARN("SSL_set_fd");
+        if (SSL_connect(ssl) < 1)                WARN("SSL_connect");
+        if (SSL_write(ssl, res, siz) < 1)        WARN("SSL_write");
+        for (j=1, bp=res, siz=0; rsiz-siz-1 > 0 && j; bp[siz+=j]=0)
                 j = SSL_read(ssl, res+siz, rsiz-siz-1);
         SSL_free(ssl); /* No SSL_shutdown by design */
         if (res[0] == '1') {                                         /* Query */
@@ -80,7 +80,8 @@ uri:    i = strstr(buf, "//") ? (strncmp(buf, "gemini:", 7) ? 2 : 9) : 0;
                 sprintf(buf, "%.*s", (int)strcspn(bp+3, "\r\n"), bp+3);
                 goto uri;
         }
-        if (!(tmp = fopen(path, "wb"))) err(1, "fopen(%s)", path);
+        if (!(tmp = fopen(PATH, "wb"))) err(1, "fopen(%s)", PATH);   /* Print */
+        fprintf(tmp, "gemini://%s\n", uri);
         for (i=0; *bp && (siz=strcspn(bp, "\n\0")) > -1; bp+=siz+1) {
                 if (!strncmp(bp, "=>", 2)) { /* It's-a Mee, URIoo! */
                         siz = strcspn((bp += 2+strspn(bp+2, " \t")), " \t\n\0");
@@ -88,10 +89,10 @@ uri:    i = strstr(buf, "//") ? (strncmp(buf, "gemini:", 7) ? 2 : 9) : 0;
                         siz += strspn(bp+siz, " \t")-1;
                 } else fprintf(tmp, "%.*s\n", siz, bp);
         }
-        if (fclose(tmp) == EOF) err(1, "fclose(%s)", path);
+        if (fclose(tmp) == EOF) err(1, "fclose(%s)", PATH);
         fprintf(history, "%s\n", uri);
-        sprintf(buf, "%.128s %s", argc > 1 ? argv[1] : "cat", path);
-        system(buf);            /* Show response in pager, cat by default */
+        sprintf(buf, "%.128s %s", argc > 1 ? argv[1] : "less -XI", PATH);
+        system(buf); /* Show response in pager */
         goto start;
 quit:   if (fclose(history) == EOF) err(1, "fclose(history)");
         return 0;
