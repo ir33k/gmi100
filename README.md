@@ -206,7 +206,7 @@ code.  I'm probably missing some SSL setting.
 
 I finally fixed it.  I had to use `SSL_set_tlsext_host_name` before
 establishing connection.  I would not be able to figured it out by
-myself.  All thanks to source code of project "gplaces" [2].  And
+myself.  All thanks to source code of project [gplaces][2].  And
 yes - it's 5 am.
 
 
