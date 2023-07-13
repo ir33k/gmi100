@@ -81,7 +81,8 @@ uri:    i = strstr(buf, "//") ? (strncmp(buf, "gemini:", 7) ? 2 : 9) : 0;
                 goto uri;
         }
         if (!(tmp = fopen(PATH, "wb"))) err(1, "fopen(%s)", PATH);   /* Print */
-        fprintf(tmp, "gemini://%s\n", uri);
+        fprintf(tmp, "[0]\tgemini://%s\n\t", uri);
+	bp[strcspn(bp, "\r\n")] = '\n';
         for (i=0; *bp && (siz=strcspn(bp, "\n\0")) > -1; bp+=siz+1) {
                 if (!strncmp(bp, "=>", 2)) { /* It's-a Mee, URIoo! */
                         siz = strcspn((bp += 2+strspn(bp+2, " \t")), " \t\n\0");
