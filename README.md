@@ -13,7 +13,7 @@ Compile with any C compiler or you can try `build` script.
 [OpenSSL][0] is the only dependency.
 
 	$ ./build               # Compile on Linux
-	$ ./gmi100              # Run with default "less -Xi" pager
+	$ ./gmi100              # Run with default "less -XI" pager
 	$ ./gmi100 more         # Run using "more" pager
 	$ ./gmi100 cat          # Run using "cat" as pager
 	> gemini.circumlunar.space
@@ -24,7 +24,8 @@ In `gmi100>` prompt you can take few actions:
 2. Type a number of link on current page, for example: `12`.
 3. Type `q` to quit.
 4. Type `0` to refresh current page.
-5. Type `b` to go back in browsing history.  Browsing history is
+5. Type `u` to go "up" in URL directory path.
+6. Type `b` to go back in browsing history.  Browsing history is
    persistent between sessions.
 
 
@@ -204,10 +205,10 @@ code.  I'm probably missing some SSL setting.
 
 ### 2023.07.13 Thu 04:56 - `SSL_ERROR_SSL` error fixed
 
-I finally fixed it.  I had to use `SSL_set_tlsext_host_name` before
+I finally found it.  I had to use `SSL_set_tlsext_host_name` before
 establishing connection.  I would not be able to figured it out by
-myself.  All thanks to source code of project [gplaces][2].  And
-yes - it's 5 am.
+myself.  All thanks to source code of project [gplaces][2].  And yes,
+it's 5 am.
 
 
 [0]: https://www.openssl.org/
