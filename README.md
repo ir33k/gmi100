@@ -24,7 +24,7 @@ In `gmi100>` prompt you can take few actions:
 2. Type a number of link on current page, for example: `12`.
 3. Type `q` to quit.
 4. Type `r` to refresh current page.
-5. Type `u` to go "up" in URL directory path.
+5. Type `B` to go "back" (up) in URL directory path.
 6. Type `b` to go back in browsing history.  Browsing history is
    persistent between sessions.
 
@@ -210,6 +210,11 @@ establishing connection.  I would not be able to figured it out by
 myself.  All thanks to source code of project [gplaces][2].  And yes,
 it's 5 am.
 
+2023.07.13 Thu 06:55 - I am complete! \m/
+
+I just added one missing piece.  When response header content type is
+not `text/gemeni` then `xdg-open` will be used to open server response
+as file.
 
 [0]: https://www.openssl.org/
 [1]: https://gemini.circumlunar.space/docs/faq.gmi
