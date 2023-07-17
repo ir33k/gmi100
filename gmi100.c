@@ -7,49 +7,42 @@
 #define WARN(msg) do { fputs("WARNING: "msg"\n", stderr); goto start; } while(0)
 
 int main(int argc, char **argv) {
-        char uri[1024+1], buf[1024+1], buf2[1024+1], *bp, *p;
+        char uri[1024+1], buf[1024+1], buf2[1024+1], *bp, *t=tmpnam(0);
         int i, j, siz, sfd, hp, KB=1024;
-        FILE *history, *tmp;
+        FILE *his, *tmp;
         struct hostent *he;
         struct sockaddr_in addr;
         SSL_CTX *ctx;
-        SSL *ssl;
+        SSL *ssl=0;
 
         addr.sin_family = AF_INET;
         addr.sin_port = htons(1965); /* Gemini port */
         SSL_library_init();
         if (!(ctx = SSL_CTX_new(TLS_client_method()))) errx(1, "SSL_CTX_new");
-        if (!(history = fopen(".gmi100", "a+b"))) err(1, "fopen(.gmi100)");
-        fseek(history, 0, SEEK_END);
-        hp = ftell(history)-1;
+        if (!(his = fopen(".gmi100", "a+b"))) err(1, "fopen(.gmi100)");
+        if (!(tmp = fopen(t, "w+b"))) err(1, "fopen(%s)", t);
+        fseek(his, 0, SEEK_END);
+        hp = ftell(his)-1;
 start:  fprintf(stderr, "gmi100> ");                             /* Main loop */
-        if (!fgets(buf, KB, stdin)) goto quit;
-        /* TODO(irek): I could have access to search engine with ? prefix. */
-        /* TOOD(irek): It would be great to support local files. */
-        if (buf[1]=='\n') switch (buf[0]) {                       /* Commands */
-        case 'q': goto quit;
-        case 'c': printf("%s\n", uri); goto start;
-        case 'r': strcpy(buf, uri); goto uri;
+        if (!fgets(buf, KB, stdin)) return 0;
+        if (*buf == '!' && !(buf[strlen(buf)-1]=0)) {                  /* Cmd */
+sys:            sprintf(buf2, "%.256s %s", buf+1, t);
+                system(buf2);
+                goto start;
+        } else if (buf[1]=='\n') switch (buf[0]) {                /* Commands */
+        case 'q': return 0;
+        case '?': sprintf(uri, "geminispace.info/search"); goto query;
         case 'B': sprintf(buf, "%.1021s../", uri); goto uri;
-        case 'b':
-                while (!fseek(history, --hp, 0) && hp && fgetc(history)!='\n');
-                fgets(buf, KB, history);
+        case 'b': while (!fseek(his, --hp, 0) && hp && fgetc(his)!='\n');
+                fgets(buf, KB, his);
                 goto uri;
         }
-        hp = ftell(history)-1; /* Reset history position */
-        if ((i = atoi(buf)) > 0) {                              /* Navigation */
-                siz = sprintf(buf, "[%d]\t=>", i);
-                if (!(tmp = fopen(p, "rb"))) err(1, "fopen(%s)", p);
-                for (bp=buf2; fgets(bp,siz,tmp) && i;) if (!strcmp(bp,buf)) i--;
-                if (i || !bp) {
-                        printf(">>>> not found %d", i);
-                        if (fclose(tmp) == EOF) err(1, "fclose(tmp)");
-                        goto start;
-                }
-                while ((j = fgetc(tmp)) <= ' ');
-                ungetc(j, tmp);
-                fgets(bp, KB, tmp);
-                if (fclose(tmp) == EOF) err(1, "fclose(tmp)");
+        hp = ftell(his)-1; /* Reset history position */
+        if ((i=atoi(buf)) > 0 && (siz=sprintf(buf, "[%d]\t=>", i))) {  /* Nav */
+                rewind(tmp);
+                for (bp=buf2; fgets(bp, siz+1, tmp) && (i=strcmp(bp, buf)););
+                if (i) goto start;
+                fscanf(tmp, "%*[\t ]%[^\t ]", bp);
                 bp[strcspn(bp, " \t\n\0")] = 0;
                 if (strstr(bp, "//")) uri[0] = 0; /* Absolute */
                 else if (bp[0] == '/') uri[strcspn(uri, "/\n\0")] = 0;
@@ -75,29 +68,27 @@ uri:    i = strstr(buf, "//") ? (strncmp(buf, "gemini:", 7) ? 2 : 9) : 0;
         }
         if (j) WARN("Failed to connect");
         siz = sprintf(buf2, "gemini://%.*s\r\n", KB, uri);
+        if (ssl) SSL_free(ssl);
         if ((ssl = SSL_new(ctx)) == 0)           WARN("SSL_new");
         if (!SSL_set_tlsext_host_name(ssl, buf)) WARN("SSL_set_tlsext");
         if (!SSL_set_fd(ssl, sfd))               WARN("SSL_set_fd");
         if (SSL_connect(ssl) < 1)                WARN("SSL_connect");
         if (SSL_write(ssl, buf2, siz) < 1)       WARN("SSL_write");
-        if (!(tmp = fopen(p=tmpnam(0), "w+b"))) err(1, "fopen(%s)", p);
         for (i=0, bp=buf2; SSL_read(ssl, bp, 1) && *bp != '\n'; bp+=1, bp[1]=0);
-        if ((j=!strncmp(buf2+3, "text/", 5))) while (SSL_peek(ssl, buf, 2)) {
-                if (!strncmp(buf, "=>", 2)) fprintf(tmp, "[%d]\t", ++i);
-                while (SSL_read(ssl, buf, 1) && fputc(*buf, tmp) && *buf!='\n');
-        } else while ((siz=SSL_read(ssl, bp, 1024))) fwrite(bp, 1, siz, tmp);
-        if (fclose(tmp) == EOF) err(1, "fclose(tmp)");
-        SSL_free(ssl); /* No SSL_shutdown by design */
         if ((bp=buf2) && bp[0] == '1') {                             /* Query */
-                siz = sprintf(buf, "%.*s?", (int)strcspn(uri, "?\0"), uri);
+query:          siz = sprintf(buf, "%.*s?", (int)strcspn(uri, "?\0"), uri);
                 printf("Query: ");
                 fgets(buf+siz, KB-siz, stdin);
                 goto uri;
         } else if (bp[0] == '3' && strcpy(buf, bp+3)) goto uri;   /* Redirect */
-        fprintf(history, "%s\n", uri); /* Save URI in history */
-        sprintf(buf, "%.128s %s", j?(argc>1?argv[1]:"less -XI"):"xdg-open", p);
-        system(buf); /* Print using pager or open file */
+        fprintf(his, "%s\n", uri); /* Save URI in history */
+        if (!(tmp = freopen(t, "w+b", tmp))) err(1, "freopen(%s)", t);
+        if ((j=!strncmp(buf2+3, "text/", 5))) while (SSL_peek(ssl, buf, 2)) {
+                if (!strncmp(buf, "=>", 2)) fprintf(tmp, "[%d]\t", ++i);
+                while (SSL_read(ssl, buf, 1) && fputc(*buf, tmp) && *buf!='\n');
+        } else while ((siz=SSL_read(ssl, bp, KB))) fwrite(bp, 1, siz, tmp);
+        if (fflush(tmp)) err(1, "fflush(tmp)");
+        if (j && sprintf(buf, "?%.256s", argc>1?argv[1]:"less -XI")) goto sys;
         goto start;
-quit:   if (fclose(history) == EOF) err(1, "fclose(history)");
         return 0;
 }
