@@ -9,35 +9,59 @@ Gemini CLI protocol client written in 100 lines of ANSI C.
 Build, run and usage
 --------------------
 
-Compile with any C compiler or you can try `build` script.
-[OpenSSL][0] is the only dependency.
+Run `build` script or use any C compiler and link with [OpenSSL][0].
 
 	$ ./build               # Compile on Linux
 	$ ./gmi100              # Run with default "less -XI" pager
 	$ ./gmi100 more         # Run using "more" pager
 	$ ./gmi100 cat          # Run using "cat" as pager
-	> gemini.circumlunar.space
+
+	gmi100> gemini.circumlunar.space
 
 In `gmi100>` prompt you can take few actions:
 
 1. Type Gemini URL to visit specific site.
-2. Type a number of link on current page, for example: `12`.
+2. Type a number of link on current capsule, for example: `12`.
 3. Type `q` to quit.
-4. Type `r` to refresh current page.
-5. Type `B` to go "back" (up) in URL directory path.
-6. Type `b` to go back in browsing history.  Browsing history is
-   persistent between sessions.
+4. Type `r` to refresh current capsule.
+5. Type `u` to go "up" in URL directory path.
+6. Type `b` to go back in browsing history.
+7. Type `c` to print current capsule URI.
+8. Type `?` to search, geminispace.info/search is used by default.
+9. Type shell command prefixed with `!` to run it on current capsule.
 
+Each time you navigate to `text` document the pager program will be
+run with that file.  By default `less -XI` is used but you can provide
+any other in first program argument.  If your pager is interactive
+like less the nyou have to exit from that pager in order to go back to
+gmi100 prompt and navigate to other capsule.
 
-Configuration
--------------
+When non `text` file is visited, like an image or music then nothing
+will be displayed but image will be loaded.  Then you can use any
+shell command to do something with that file.  For example you can
+visit capsule with video and open it with `mpv`:
 
-Right now there is no convenient method of configuration.  You have to
-do it manually in code and recompile.  To change:
+	gmi100> gemini://tilde.team/~konomo/noocat.webm
+	gmi100> !mpv
 
-- path to history file - modify first argument of first `fopen`.
-- used memory (might be important for very big sites) modify `malloc`.
-- shortcuts - modify cases in `switch` statement.
+Or similar example with image and music.  For example you can use
+`xdg-open` or `open` command to open file with default program for
+given MIME type.
+
+	gmi100> gemini://158.nu/images/full/158/2022-03-13-0013_v1.jpg
+	gmi100> !xdg-open
+	
+You also can use any program on reqular text capsules.  For example
+you decided that your defauly pager is `cat` but for some capsules you
+want to use `less`.  Or you want to edit given page in text editor.
+In summary, you can open currently loaded capsule as file in any
+program as long as you don't navigate to other URI.
+
+	gmi100> gemini.circumlunar.space
+	gmi100> !less
+	gmi100> !emacs
+	gmi100> !firefox
+	gmi100> !xdg-open
 
 
 How browsing history works
@@ -210,11 +234,31 @@ establishing connection.  I would not be able to figured it out by
 myself.  All thanks to source code of project [gplaces][2].  And yes,
 it's 5 am.
 
-2023.07.13 Thu 06:55 - I am complete! \m/
+### 2023.07.18 Tue 16:42 - v3.0 I am complete! \m/
 
-I just added one missing piece.  When response header content type is
-not `text/gemeni` then `xdg-open` will be used to open server response
-as file.
+In v3 I completely redesigned core memory handling by switching to
+files only.  With that program is now able to handle non text capsules
+that contains images, music, videos and other.
+
+In simpler words, server response body is always stored as temporary
+file.  This file is then passed to pager program if MIME type is of
+text type.  Else nothing happens but you can invoke any command on
+this file so you can use `mpv` for media files or PDF viewer for
+documents etc.  This also opens a lot of other possibilities.  For
+example you can easily open currently loaded capsule in different
+pager than default or in text editor or you can just use your system
+default program with `xdg-open`.  And as log as you don't navigate to
+other capsule you can keep using different commands on that file.
+
+I also added few small useful commands like easy searching with `?`.
+I was trying really hard to also implement handling for local files
+with `file://` prefix.  But I would have to make links parser somehow
+generic.  Right now it depends on SSL functions.  I don't see how to
+fit that in current code structure.  I'm not planning any further
+development.  I already achieved much more than I initially wanted.
+
+I'm calling this project complete.
+
 
 [0]: https://www.openssl.org/
 [1]: https://gemini.circumlunar.space/docs/faq.gmi

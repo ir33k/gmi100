@@ -14,7 +14,6 @@ int main(int argc, char **argv) {
         struct sockaddr_in addr;
         SSL_CTX *ctx;
         SSL *ssl=0;
-
         addr.sin_family = AF_INET;
         addr.sin_port = htons(1965); /* Gemini port */
         SSL_library_init();
@@ -32,18 +31,19 @@ sys:            sprintf(buf2, "%.256s %s", buf+1, t);
         } else if (buf[1]=='\n') switch (buf[0]) {                /* Commands */
         case 'q': return 0;
         case '?': sprintf(uri, "geminispace.info/search"); goto query;
-        case 'B': sprintf(buf, "%.1021s../", uri); goto uri;
+        case 'r': strcpy(buf, uri); goto uri; /* Refresh */
+        case 'c': printf("%s\n", uri); goto start;
+        case 'u': sprintf(buf, "%.1021s../", uri); goto uri;
         case 'b': while (!fseek(his, --hp, 0) && hp && fgetc(his)!='\n');
                 fgets(buf, KB, his);
                 goto uri;
         }
         hp = ftell(his)-1; /* Reset history position */
-        if ((i=atoi(buf)) > 0 && (siz=sprintf(buf, "[%d]\t=>", i))) {  /* Nav */
+        if ((i=atoi(buf)) > 0 && (siz=sprintf(buf, "[%d]\t=> ", i))) { /* Nav */
                 rewind(tmp);
                 for (bp=buf2; fgets(bp, siz+1, tmp) && (i=strcmp(bp, buf)););
                 if (i) goto start;
-                fscanf(tmp, "%*[\t ]%[^\t ]", bp);
-                bp[strcspn(bp, " \t\n\0")] = 0;
+                fgets(bp, KB, tmp);
                 if (strstr(bp, "//")) uri[0] = 0; /* Absolute */
                 else if (bp[0] == '/') uri[strcspn(uri, "/\n\0")] = 0;
                 else if (!strncmp(&bp[i], "../", 2)); /* Keep whole uri */
@@ -83,9 +83,15 @@ query:          siz = sprintf(buf, "%.*s?", (int)strcspn(uri, "?\0"), uri);
         } else if (bp[0] == '3' && strcpy(buf, bp+3)) goto uri;   /* Redirect */
         fprintf(his, "%s\n", uri); /* Save URI in history */
         if (!(tmp = freopen(t, "w+b", tmp))) err(1, "freopen(%s)", t);
-        if ((j=!strncmp(buf2+3, "text/", 5))) while (SSL_peek(ssl, buf, 2)) {
-                if (!strncmp(buf, "=>", 2)) fprintf(tmp, "[%d]\t", ++i);
-                while (SSL_read(ssl, buf, 1) && fputc(*buf, tmp) && *buf!='\n');
+nodesc: if ((j=!strncmp(bp+3, "text/", 5))) while (SSL_peek(ssl, bp, 2)) {
+                if (!strncmp(bp, "=>", 2) && SSL_read(ssl, bp, 2)) {
+                        fprintf(tmp, "[%d]\t=> ", ++i); /* It's-a Mee, URIoo! */
+                        while (SSL_peek(ssl,bp,1)&&*bp<=' ') SSL_read(ssl,bp,1);
+                        while (SSL_read(ssl,bp,1)&& fputc(*bp,tmp) &&*bp> ' ');
+                        if (*bp == '\n') goto nodesc; /* URI without descri */
+                        fputs("\n\t", tmp);
+                        while (SSL_peek(ssl,bp,1)&&*bp<=' ') SSL_read(ssl,bp,1);
+                } while (SSL_read(ssl, bp, 1) && fputc(*bp, tmp) && *bp!='\n');
         } else while ((siz=SSL_read(ssl, bp, KB))) fwrite(bp, 1, siz, tmp);
         if (fflush(tmp)) err(1, "fflush(tmp)");
         if (j && sprintf(buf, "?%.256s", argc>1?argv[1]:"less -XI")) goto sys;
