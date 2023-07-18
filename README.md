@@ -5,6 +5,15 @@ Gemini CLI protocol client written in 100 lines of ANSI C.
 
 ![demo.gif](demo.gif)
 
+Other similar Gemini client projects written in few lines of code
+successfully shows how simple Gemini protocol is.  This code is far
+from straight forward.  But I had a different goal in mind.
+
+I tried to pack as much as possible in 100 lines of ANSI C.  Initially
+I struggled to fit simple TLS connection in such small space but
+eventually I ended up with CLI client capable of efficient navigation
+between capsules of Gemini space 🚀
+
 
 Build, run and usage
 --------------------
@@ -33,12 +42,12 @@ In `gmi100>` prompt you can take few actions:
 Each time you navigate to `text` document the pager program will be
 run with that file.  By default `less -XI` is used but you can provide
 any other in first program argument.  If your pager is interactive
-like less the nyou have to exit from that pager in order to go back to
+like less the you have to exit from that pager in order to go back to
 gmi100 prompt and navigate to other capsule.
 
 When non `text` file is visited, like an image or music then nothing
-will be displayed but image will be loaded.  Then you can use any
-shell command to do something with that file.  For example you can
+will be displayed but temporary file will be created.  Then you can
+use any shell command to do something with it.  For example you can
 visit capsule with video and open it with `mpv`:
 
 	gmi100> gemini://tilde.team/~konomo/noocat.webm
