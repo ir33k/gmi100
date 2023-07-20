@@ -268,6 +268,17 @@ development.  I already achieved much more than I initially wanted.
 
 I'm calling this project complete.
 
+> I am complete!  
+> Ha-aaaack  
+> Yes, you are hacked  
+> Git out of luck  
+> Now I'm compiled  
+> And my stack you will hack  
+> This code will be mine  
+> #include in first line  
+> <you_brought_me_the_lib.h>  
+> And now you shall compile  
+
 
 [0]: https://www.openssl.org/
 [1]: https://gemini.circumlunar.space/docs/faq.gmi
