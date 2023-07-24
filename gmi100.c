@@ -1,5 +1,5 @@
 #include <stdio.h>    /* Gemini CLI protocol client written in 100 lines of C */
-#include <string.h>   /* v3.1 https://github.com/ir33k/gmi100 by irek@gabr.pl */
+#include <string.h>   /* v3.2 https://github.com/ir33k/gmi100 by irek@gabr.pl */
 #include <unistd.h>   /* This is free and unencumbered software released into */
 #include <netdb.h>    /* the public domain.  Read more: https://unlicense.org */
 #include <err.h>
@@ -8,7 +8,7 @@
 
 int main(int argc, char **argv) {
         char uri[1024+1], buf[1024+1], buf2[1024+1], *bp, *t=tmpnam(0);
-        int i, j, siz, sfd, hp, KB=1024;
+        int i, j, siz, sfd=0, hp, KB=1024;
         FILE *his, *tmp;
         struct hostent *he;
         struct sockaddr_in addr;
@@ -19,8 +19,7 @@ int main(int argc, char **argv) {
         if (!(ctx = SSL_CTX_new(TLS_client_method()))) errx(1, "SSL_CTX_new");
         if (!(his = fopen(".gmi100", "a+b"))) err(1, "fopen(.gmi100)");
         if (!(tmp = fopen(t, "w+b"))) err(1, "fopen(%s)", t);
-        fseek(his, 0, SEEK_END);
-        hp = ftell(his)-1;
+        fseek(his, 0, SEEK_END), hp = ftell(his)-1;
 start:  fprintf(stderr, "gmi100> ");                             /* Main loop */
         if (!fgets(buf, KB, stdin)) return 0;
         if (*buf == '!') {                                             /* Cmd */
@@ -52,18 +51,19 @@ sys:            sprintf(buf2, "%.256s %s", buf+1, t);
                 sprintf(buf, "%s%s", uri, bp);
         }                                                        /* Typed URL */
 uri:    i = strstr(buf, "//") ? (strncmp(buf, "gemini:", 7) ? 2 : 9) : 0;
-        for (j=strlen(buf)-1; buf[j] <= ' '; j--); /* Trim */
-        for (buf[j+1]=0, j=0; buf[i] && j<KB; uri[j]=0, i++) {
+        for (j=strlen(buf)-1; j>=0 && buf[j] <= ' '; j--); /* Trim */
+        for (buf[j+1]=0, j=0, uri[0]=0; buf[i] && j<KB; uri[j]=0, i++) {
                 if (!strncmp(&buf[i], "../", 2)) for (i+=2; uri[--j-1] != '/';);
                 else if (buf[i] != ' ') uri[j++] = buf[i];
                 else if ((j+=3) < KB) strcat(uri, "%20");
         }
         fprintf(stderr, "gemini://%s\n", uri);
+        if (sfd && close(sfd) == -1) err(1, "close");
         if ((sfd=socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) WARN("socket");
         sprintf(buf, "%.*s", (int)strcspn(uri, ":/\0"), uri);
         if ((he = gethostbyname(buf)) == 0) WARN("Invalid host");
         for (i=0, j=1; j && he->h_addr_list[i]; i++) {
-                addr.sin_addr.s_addr = *((unsigned long*)he->h_addr_list[i]);
+                memcpy(&addr.sin_addr.s_addr, he->h_addr_list[i], 16);
                 j = connect(sfd, (struct sockaddr*)&addr, sizeof(addr));
         }
         if (j) WARN("Failed to connect");
