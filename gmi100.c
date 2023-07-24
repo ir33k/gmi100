@@ -1,5 +1,5 @@
 #include <stdio.h>    /* Gemini CLI protocol client written in 100 lines of C */
-#include <string.h>   /* v3.0 https://github.com/ir33k/gmi100 by irek@gabr.pl */
+#include <string.h>   /* v3.1 https://github.com/ir33k/gmi100 by irek@gabr.pl */
 #include <unistd.h>   /* This is free and unencumbered software released into */
 #include <netdb.h>    /* the public domain.  Read more: https://unlicense.org */
 #include <err.h>
@@ -14,8 +14,7 @@ int main(int argc, char **argv) {
         struct sockaddr_in addr;
         SSL_CTX *ctx;
         SSL *ssl=0;
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(1965); /* Gemini port */
+        addr.sin_family=AF_INET, addr.sin_port=htons(1965); /* Gemini port */
         SSL_library_init();
         if (!(ctx = SSL_CTX_new(TLS_client_method()))) errx(1, "SSL_CTX_new");
         if (!(his = fopen(".gmi100", "a+b"))) err(1, "fopen(.gmi100)");
@@ -24,7 +23,8 @@ int main(int argc, char **argv) {
         hp = ftell(his)-1;
 start:  fprintf(stderr, "gmi100> ");                             /* Main loop */
         if (!fgets(buf, KB, stdin)) return 0;
-        if (*buf == '!' && !(buf[strlen(buf)-1]=0)) {                  /* Cmd */
+        if (*buf == '!') {                                             /* Cmd */
+                buf[strlen(buf)-1] = 0;
 sys:            sprintf(buf2, "%.256s %s", buf+1, t);
                 system(buf2);
                 goto start;
