@@ -14,6 +14,7 @@ I struggled to fit simple TLS connection in such small space but
 eventually I ended up with CLI client capable of efficient navigation
 between capsules of Gemini space 🚀
 
+[Discussion on Hacker News][3]
 
 Build, run and usage
 --------------------
@@ -271,15 +272,16 @@ I'm calling this project complete.
 > I am complete!  
 > Ha-aaaack  
 > Yes, you are hacked  
-> Git out of luck  
-> Now I'm compiled  
-> And my stack you will hack  
+> Overflow stack
+> Now I'm complete  
+> And my log you debug  
 > This code will be mine  
 > #include in first line  
 > <you_brought_me_the_lib.h>  
-> And now you shall compile  
+> And now your shell compile  
 
 
 [0]: https://www.openssl.org/
 [1]: https://gemini.circumlunar.space/docs/faq.gmi
 [2]: https://github.com/dimkr/gplaces/blob/gemini/gplaces.c#L841
+[3]: https://news.ycombinator.com/item?id=36786239
