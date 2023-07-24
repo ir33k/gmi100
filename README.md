@@ -272,13 +272,21 @@ I'm calling this project complete.
 > I am complete!  
 > Ha-aaaack  
 > Yes, you are hacked  
-> Overflow stack
+> Overflow stack  
 > Now I'm complete  
 > And my log you debug  
 > This code will be mine  
 > #include in first line  
 > <you_brought_me_the_lib.h>  
 > And now your shell compile  
+
+### 2023.07.24 Mon 17:53 - Feedback from interwebs
+
+During [discussion on Hacker News][3] one user pointed out critical
+bugs and potential errors in code.  Corrections are committed.
+Everyone should be safe now from buffer underflow and memory leak so
+please disperse as there is nothing to see here and please don't tell
+Rust community about it.
 
 
 [0]: https://www.openssl.org/
