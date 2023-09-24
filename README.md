@@ -288,8 +288,18 @@ Everyone should be safe now from buffer underflow and memory leak so
 please disperse as there is nothing to see here and please don't tell
 Rust community about it.
 
+### 2023.09.24 Sun 04:11 - Joining the big boys
+
+Thanks to [Solderpunk][4] ([web][5]) at 21st of September project
+`gmi100` was added to list of Gemini software on official protocol
+[capsule][6] (and [website][7]).  I'm so proud of my little boy.
+
 
 [0]: https://www.openssl.org/
 [1]: https://gemini.circumlunar.space/docs/faq.gmi
 [2]: https://github.com/dimkr/gplaces/blob/gemini/gplaces.c#L841
 [3]: https://news.ycombinator.com/item?id=36786239
+[4]: gemini://zaibatsu.circumlunar.space/~solderpunk/
+[5]: https://zaibatsu.circumlunar.space/~solderpunk/
+[6]: gemini://geminiprotocol.net/software/
+[7]: https://geminiprotocol.net/software/
