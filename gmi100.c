@@ -63,7 +63,7 @@ uri:    i = strstr(buf, "//") ? (strncmp(buf, "gemini:", 7) ? 2 : 9) : 0;
         sprintf(buf, "%.*s", (int)strcspn(uri, ":/\0"), uri);
         if ((he = gethostbyname(buf)) == 0) WARN("Invalid host");
         for (i=0, j=1; j && he->h_addr_list[i]; i++) {
-                memcpy(&addr.sin_addr.s_addr, he->h_addr_list[i], 16);
+                memcpy(&addr.sin_addr.s_addr, he->h_addr_list[i], sizeof(in_addr_t);
                 j = connect(sfd, (struct sockaddr*)&addr, sizeof(addr));
         }
         if (j) WARN("Failed to connect");
