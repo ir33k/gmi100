@@ -7,7 +7,7 @@
 #define WARN(msg) do { fputs("WARNING: "msg"\n", stderr); goto start; } while(0)
 
 int main(int argc, char **argv) {
-        char uri[1024+1], buf[1024+1], buf2[1024+1], *bp, *t=tmpnam(0);
+        char uri[1024+1], buf[4096], buf2[2048], *bp, *t=tmpnam(0);
         int i, j, siz, sfd=0, hp, KB=1024;
         FILE *his, *tmp;
         struct hostent *he;
